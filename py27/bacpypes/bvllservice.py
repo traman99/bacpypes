@@ -15,8 +15,7 @@ from .task import OneShotTask, RecurringTask
 from .comm import Client, Server, bind, \
     ServiceAccessPoint, ApplicationServiceElement
 
-from .pdu import Address, LocalBroadcast, LocalStation, PDU, \
-    unpack_ip_addr
+from .pdu import Address, LocalBroadcast, LocalStation, IPv4Address, PDU
 from .bvll import BVLPDU, DeleteForeignDeviceTableEntry, \
     DistributeBroadcastToNetwork, FDTEntry, ForwardedNPDU, \
     OriginalBroadcastNPDU, OriginalUnicastNPDU, \
@@ -63,15 +62,15 @@ class UDPMultiplexer:
         # check for some options
         specialBroadcast = False
         if addr is None:
-            self.address = Address()
+            self.address = None
             self.addrTuple = ('', 47808)
             self.addrBroadcastTuple = ('255.255.255.255', 47808)
         else:
             # allow the address to be cast
-            if isinstance(addr, Address):
+            if isinstance(addr, IPv4Address):
                 self.address = addr
             else:
-                self.address = Address(addr)
+                self.address = IPv4Address(addr)
 
             # promote the normal and broadcast tuples
             self.addrTuple = self.address.addrTuple
@@ -130,7 +129,7 @@ class UDPMultiplexer:
                 return
 
         elif pdu.pduDestination.addrType == Address.localStationAddr:
-            dest = unpack_ip_addr(pdu.pduDestination.addrAddr)
+            dest = IPv4Address(pdu.pduDestination.addrAddr).addrTuple ###TODO is this already an IPv4Address?
             if _debug: UDPMultiplexer._debug("    - requesting local station: %r", dest)
 
         else:
@@ -147,7 +146,7 @@ class UDPMultiplexer:
             return
 
         # the PDU source is a tuple, convert it to an Address instance
-        src = Address(pdu.pduSource)
+        src = IPv4Address(pdu.pduSource)
 
         # match the destination in case the stack needs it
         if client is self.direct:
@@ -628,10 +627,10 @@ class BIPForeign(BIPSAP, Client, Server, OneShotTask, DebugContents):
             raise ValueError("time-to-live must be greater than zero")
 
         # save the BBMD address and time-to-live
-        if isinstance(addr, Address):
+        if isinstance(addr, IPv4Address):
             self.bbmdAddress = addr
         else:
-            self.bbmdAddress = Address(addr)
+            self.bbmdAddress = IPv4Address(addr)
         self.bbmdTimeToLive = ttl
 
         # install this task to run when it gets a chance
@@ -714,7 +713,7 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
             # send it to the peers
             for bdte in self.bbmdBDT:
                 if bdte != self.bbmdAddress:
-                    xpdu.pduDestination = Address( ((bdte.addrIP|~bdte.addrMask), bdte.addrPort) )
+                    xpdu.pduDestination = bdte.addrBroadcastTuple
                     BIPBBMD._debug("        - sending to peer: %r", xpdu.pduDestination)
                     self.request(xpdu)
 
@@ -834,7 +833,7 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
                     if _debug: BIPBBMD._debug("        - local broadcast")
                     self.request(xpdu)
                 else:
-                    xpdu.pduDestination = Address( ((bdte.addrIP|~bdte.addrMask), bdte.addrPort) )
+                    xpdu.pduDestination = bdte.addrBroadcastTuple
                     if _debug: BIPBBMD._debug("        - sending to peer: %r", xpdu.pduDestination)
                     self.request(xpdu)
 
@@ -868,7 +867,7 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
             # send it to the peers
             for bdte in self.bbmdBDT:
                 if bdte != self.bbmdAddress:
-                    xpdu.pduDestination = Address( ((bdte.addrIP|~bdte.addrMask), bdte.addrPort) )
+                    xpdu.pduDestination = bdte.addrBroadcastTuple
                     if _debug: BIPBBMD._debug("        - sending to peer: %r", xpdu.pduDestination)
                     self.request(xpdu)
 
@@ -886,12 +885,12 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
         if _debug: BIPBBMD._debug("register_foreign_device %r %r", addr, ttl)
 
         # see if it is an address or make it one
-        if isinstance(addr, Address):
+        if isinstance(addr, IPv4Address):
             pass
         elif isinstance(addr, str):
-            addr = LocalStation( addr )
+            addr = IPv4Address(addr)
         else:
-            raise TypeError("addr must be a string or an Address")
+            raise TypeError("addr must be a string or an IPv4Address")
 
         for fdte in self.bbmdFDT:
             if addr == fdte.fdAddress:
@@ -911,12 +910,12 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
         if _debug: BIPBBMD._debug("delete_foreign_device_table_entry %r", addr)
 
         # see if it is an address or make it one
-        if isinstance(addr, Address):
+        if isinstance(addr, IPv4Address):
             pass
         elif isinstance(addr, str):
-            addr = LocalStation( addr )
+            addr = IPv4Address(addr)
         else:
-            raise TypeError("addr must be a string or an Address")
+            raise TypeError("addr must be a string or an IPv4Address")
 
         # find it and delete it
         stat = 0
@@ -945,12 +944,12 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
         if _debug: BIPBBMD._debug("add_peer %r", addr)
 
         # see if it is an address or make it one
-        if isinstance(addr, Address):
+        if isinstance(addr, IPv4Address):
             pass
         elif isinstance(addr, str):
-            addr = LocalStation(addr)
+            addr = IPv4Address(addr)
         else:
-            raise TypeError("addr must be a string or an Address")
+            raise TypeError("addr must be a string or an IPv4Address")
 
         # if it's this BBMD, make it the first one
         if self.bbmdBDT and (addr == self.bbmdAddress):
@@ -967,12 +966,12 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
         if _debug: BIPBBMD._debug("delete_peer %r", addr)
 
         # see if it is an address or make it one
-        if isinstance(addr, Address):
+        if isinstance(addr, IPv4Address):
             pass
         elif isinstance(addr, str):
-            addr = LocalStation(addr)
+            addr = IPv4Address(addr)
         else:
-            raise TypeError("addr must be a string or an Address")
+            raise TypeError("addr must be a string or an IPv4Address")
 
         # look for the peer address
         for i in range(len(self.bbmdBDT)-1, -1, -1):

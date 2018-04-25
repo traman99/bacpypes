@@ -11,7 +11,7 @@ import unittest
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger, xtob
 
 from bacpypes.pdu import Address, PDU, LocalBroadcast
-from bacpypes.vlan import IPNetwork, IPRouter
+from bacpypes.vlan import IPv4Network, IPv4Router
 from bacpypes.bvll import ReadForeignDeviceTable, ReadForeignDeviceTableAck
 
 from ..state_machine import StateMachineGroup
@@ -40,15 +40,15 @@ class TNetwork(StateMachineGroup):
         if _debug: TNetwork._debug("    - time machine reset")
 
         # make a router
-        self.router = IPRouter()
+        self.router = IPv4Router()
 
         # make a home LAN
-        self.home_vlan = IPNetwork()
-        self.router.add_network(Address("192.168.5.1/24"), self.home_vlan)
+        self.home_vlan = IPv4Network("192.168.5.0/24")
+        self.router.add_network("192.168.5.1/24", self.home_vlan)
 
         # make a remote LAN
-        self.remote_vlan = IPNetwork()
-        self.router.add_network(Address("192.168.6.1/24"), self.remote_vlan)
+        self.remote_vlan = IPv4Network("192.168.6.0/24")
+        self.router.add_network("192.168.6.1/24", self.remote_vlan)
 
         # the foreign device
         self.fd = ForeignNode("192.168.6.2/24", self.remote_vlan)

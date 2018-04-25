@@ -4,16 +4,18 @@
 B/IP VLAN Helper Classes
 """
 
+import struct
+import socket
+
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
 from bacpypes.comm import Client, Server, bind
-from bacpypes.pdu import Address, LocalBroadcast, PDU, unpack_ip_addr
-from bacpypes.vlan import IPNode
+from bacpypes.pdu import Address, LocalBroadcast, PDU
+from bacpypes.vlan import IPv4Node
 
-from ..state_machine import ClientStateMachine
+from ..state_machine import ClientStateMachine, TrafficLog
 
 from bacpypes.bvllservice import BIPSimple, BIPForeign, BIPBBMD, AnnexJCodec
-
 
 # some debugging
 _debug = 0
@@ -44,7 +46,7 @@ class FauxMultiplexer(Client, Server):
 
         # make an internal node and bind to it, this takes the place of
         # both the direct port and broadcast port of the real UDPMultiplexer
-        self.node = IPNode(addr, network)
+        self.node = IPv4Node(addr, network)
         bind(self, self.node)
 
     def indication(self, pdu):
@@ -56,7 +58,7 @@ class FauxMultiplexer(Client, Server):
             if _debug: FauxMultiplexer._debug("    - requesting local broadcast: %r", dest)
 
         elif pdu.pduDestination.addrType == Address.localStationAddr:
-            dest = unpack_ip_addr(pdu.pduDestination.addrAddr)
+            dest = pdu.pduDestination.addrTuple
             if _debug: FauxMultiplexer._debug("    - requesting local station: %r", dest)
 
         else:
@@ -96,7 +98,7 @@ class SnifferNode(ClientStateMachine):
         self.address = Address(address)
 
         # create a promiscuous node, added to the network
-        self.node = IPNode(self.address, vlan, promiscuous=True)
+        self.node = IPv4Node(self.address, vlan, promiscuous=True)
         if _debug: SnifferNode._debug("    - node: %r", self.node)
 
         # bind this to the node

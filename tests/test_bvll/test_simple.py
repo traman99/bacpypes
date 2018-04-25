@@ -11,9 +11,9 @@ import unittest
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger, xtob
 
 from bacpypes.pdu import PDU, LocalBroadcast
-from bacpypes.vlan import IPNetwork
+from bacpypes.vlan import IPv4Network
 
-from ..state_machine import match_pdu, StateMachineGroup
+from ..state_machine import match_pdu, StateMachineGroup, TrafficLog
 from ..time_machine import reset_time_machine, run_time_machine
 
 from .helpers import SnifferNode, SimpleNode
@@ -38,8 +38,12 @@ class TNetwork(StateMachineGroup):
         reset_time_machine()
         if _debug: TNetwork._debug("    - time machine reset")
 
+        # create a traffic log
+        self.traffic_log = TrafficLog()
+
         # make a little LAN
-        self.vlan = IPNetwork()
+        self.vlan = IPv4Network("192.168.4.0/24")
+        self.vlan.traffic_log = self.traffic_log
 
         # test device
         self.td = SimpleNode("192.168.4.1/24", self.vlan)
@@ -52,7 +56,6 @@ class TNetwork(StateMachineGroup):
         # sniffer node
         self.sniffer = SnifferNode("192.168.4.254/24", self.vlan)
         self.append(self.sniffer)
-
 
     def run(self, time_limit=60.0):
         if _debug: TNetwork._debug("run %r", time_limit)
@@ -68,6 +71,9 @@ class TNetwork(StateMachineGroup):
                 TNetwork._debug("    - machine: %r", state_machine)
                 for direction, pdu in state_machine.transaction_log:
                     TNetwork._debug("        %s %s", direction, str(pdu))
+
+            # traffic log has what was processed on each vlan
+            self.traffic_log.dump(TNetwork._debug)
 
         # check for success
         all_success, some_failed = super(TNetwork, self).check_for_success()

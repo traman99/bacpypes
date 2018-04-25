@@ -18,7 +18,7 @@ if _sys.platform not in _supported_platforms:
 #   Project Metadata
 #
 
-__version__ = '0.17.1'
+__version__ = '0.18.0'
 __author__ = 'Joel Bender'
 __email__ = 'joel@carrickbender.com'
 
@@ -52,8 +52,6 @@ from . import netservice
 
 from . import bvll
 from . import bvllservice
-from . import bsll
-from . import bsllservice
 
 #
 #   Application Layer Modules

@@ -7,7 +7,7 @@ BACnet Virtual Link Layer Module
 from .errors import EncodingError, DecodingError
 from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
 
-from .pdu import Address, PCI, PDUData, unpack_ip_addr
+from .pdu import IPv4Address, PCI, PDUData
 
 # some debugging
 _debug = 0
@@ -220,15 +220,18 @@ class WriteBroadcastDistributionTable(BVLPDU):
     def encode(self, bvlpdu):
         BVLCI.update(bvlpdu, self)
         for bdte in self.bvlciBDT:
-            bvlpdu.put_data( bdte.addrAddr )
-            bvlpdu.put_long( bdte.addrMask )
+            bvlpdu.put_data(bdte.addrAddr)
+            bvlpdu.put_long(int(bdte.netmask))
 
     def decode(self, bvlpdu):
         BVLCI.update(self, bvlpdu)
         self.bvlciBDT = []
         while bvlpdu.pduData:
-            bdte = Address(unpack_ip_addr(bvlpdu.get_data(6)))
-            bdte.addrMask = bvlpdu.get_long()
+            addr = '.'.join("%d" % i for i in bvlpdu.get_data(4))
+            port = bvlpdu.get_short()
+            netbits = bin(bvlpdu.get_long()).count('1')
+
+            bdte = IPv4Address("%s/%d:%d" % (addr, netbits, port))
             self.bvlciBDT.append(bdte)
 
     def bvlpdu_contents(self, use_dict=None, as_class=dict):
@@ -298,8 +301,8 @@ class ReadBroadcastDistributionTableAck(BVLPDU):
 
         # encode the table
         for bdte in self.bvlciBDT:
-            bvlpdu.put_data( bdte.addrAddr )
-            bvlpdu.put_long( bdte.addrMask )
+            bvlpdu.put_data(bdte.addrAddr)
+            bvlpdu.put_long(int(bdte.netmask))
 
     def decode(self, bvlpdu):
         BVLCI.update(self, bvlpdu)
@@ -307,8 +310,11 @@ class ReadBroadcastDistributionTableAck(BVLPDU):
         # decode the table
         self.bvlciBDT = []
         while bvlpdu.pduData:
-            bdte = Address(unpack_ip_addr(bvlpdu.get_data(6)))
-            bdte.addrMask = bvlpdu.get_long()
+            addr = '.'.join("%d" % i for i in bvlpdu.get_data(4))
+            port = bvlpdu.get_short()
+            netbits = bin(bvlpdu.get_long()).count('1')
+
+            bdte = IPv4Address("%s/%d:%d" % (addr, netbits, port))
             self.bvlciBDT.append(bdte)
 
     def bvlpdu_contents(self, use_dict=None, as_class=dict):
@@ -358,7 +364,7 @@ class ForwardedNPDU(BVLPDU):
         BVLCI.update(self, bvlpdu)
 
         # get the address
-        self.bvlciAddress = Address(unpack_ip_addr(bvlpdu.get_data(6)))
+        self.bvlciAddress = IPv4Address(bvlpdu.get_data(6))
 
         # get the rest of the data
         self.pduData = bvlpdu.get_data(len(bvlpdu.pduData))
@@ -436,7 +442,7 @@ class RegisterForeignDevice(BVLPDU):
 
     def encode(self, bvlpdu):
         BVLCI.update(bvlpdu, self)
-        bvlpdu.put_short( self.bvlciTimeToLive )
+        bvlpdu.put_short(self.bvlciTimeToLive)
 
     def decode(self, bvlpdu):
         BVLCI.update(self, bvlpdu)
@@ -501,16 +507,16 @@ class ReadForeignDeviceTableAck(BVLPDU):
     def encode(self, bvlpdu):
         BVLCI.update(bvlpdu, self)
         for fdte in self.bvlciFDT:
-            bvlpdu.put_data( fdte.fdAddress.addrAddr )
-            bvlpdu.put_short( fdte.fdTTL )
-            bvlpdu.put_short( fdte.fdRemain )
+            bvlpdu.put_data(fdte.fdAddress.addrAddr)
+            bvlpdu.put_short(fdte.fdTTL)
+            bvlpdu.put_short(fdte.fdRemain)
 
     def decode(self, bvlpdu):
         BVLCI.update(self, bvlpdu)
         self.bvlciFDT = []
         while bvlpdu.pduData:
             fdte = FDTEntry()
-            fdte.fdAddress = Address(unpack_ip_addr(bvlpdu.get_data(6)))
+            fdte.fdAddress = IPv4Address(bvlpdu.get_data(6))
             fdte.fdTTL = bvlpdu.get_short()
             fdte.fdRemain = bvlpdu.get_short()
             self.bvlciFDT.append(fdte)
@@ -548,11 +554,11 @@ class DeleteForeignDeviceTableEntry(BVLPDU):
 
     def encode(self, bvlpdu):
         BVLCI.update(bvlpdu, self)
-        bvlpdu.put_data( self.bvlciAddress.addrAddr )
+        bvlpdu.put_data(self.bvlciAddress.addrAddr)
 
     def decode(self, bvlpdu):
         BVLCI.update(self, bvlpdu)
-        self.bvlciAddress = Address(unpack_ip_addr(bvlpdu.get_data(6)))
+        self.bvlciAddress = IPv4Address(bvlpdu.get_data(6))
 
     def bvlpdu_contents(self, use_dict=None, as_class=dict):
         """Return the contents of an object as a dict."""

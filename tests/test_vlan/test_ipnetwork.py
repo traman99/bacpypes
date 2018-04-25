@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Test IPNetwork
+Test IPv4Network
 ------------
 
 This module tests the basic functionality of a crudely simulated IPv4 network,
@@ -16,9 +16,9 @@ from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
 from bacpypes.pdu import Address, LocalBroadcast, PDU
 from bacpypes.comm import bind
-from bacpypes.vlan import IPNetwork, IPNode, IPRouter
+from bacpypes.vlan import IPv4Network, IPv4Node, IPv4Router
 
-from ..state_machine import ClientStateMachine, StateMachineGroup
+from ..state_machine import ClientStateMachine, StateMachineGroup, TrafficLog
 from ..time_machine import reset_time_machine, run_time_machine
 
 # some debugging
@@ -30,14 +30,13 @@ _log = ModuleLogger(globals())
 class TNetwork(StateMachineGroup):
 
     def __init__(self, node_count, address_pattern):
-        if _debug: TNetwork._debug("__init__ %r", node_count)
+        if _debug: TNetwork._debug("__init__ %r %r", node_count, address_pattern)
         StateMachineGroup.__init__(self)
 
-        self.vlan = IPNetwork()
+        self.vlan = IPv4Network(address_pattern.format(0))
 
         for i in range(node_count):
-            node_address = Address(address_pattern.format(i + 1))
-            node = IPNode(node_address, self.vlan)
+            node = IPv4Node(address_pattern.format(i + 1), self.vlan)
             if _debug: TNetwork._debug("    - node: %r", node)
 
             # bind a client state machine to the node
@@ -264,17 +263,26 @@ class TestRouter(unittest.TestCase):
         given a reference to the test method."""
         if _debug: TestRouter._debug("setup_method %r", method)
 
+        # reset the time machine
+        reset_time_machine()
+        if _debug: TestRouter._debug("    - time machine reset")
+
+        # create a traffic log
+        self.traffic_log = TrafficLog()
+
         # create a state machine group that has all nodes on all networks
         self.smg = StateMachineGroup()
 
         # make some networks
-        vlan10 = IPNetwork()
-        vlan20 = IPNetwork()
+        vlan10 = IPv4Network("192.168.10.0/24")
+        vlan10.traffic_log = self.traffic_log
+        vlan20 = IPv4Network("192.168.20.0/24")
+        vlan20.traffic_log = self.traffic_log
 
         # make a router and add the networks
-        trouter = IPRouter()
-        trouter.add_network(Address("192.168.10.1/24"), vlan10)
-        trouter.add_network(Address("192.168.20.1/24"), vlan20)
+        trouter = IPv4Router()
+        trouter.add_network("192.168.10.1", vlan10)
+        trouter.add_network("192.168.20.1", vlan20)
 
         # add nodes to the networks
         for pattern, lan in (
@@ -282,8 +290,7 @@ class TestRouter(unittest.TestCase):
                 ("192.168.20.{}/24", vlan20),
                 ):
             for i in range(2):
-                node_address = Address(pattern.format(i + 2))
-                node = IPNode(node_address, lan)
+                node = IPv4Node(pattern.format(i + 2), lan)
                 if _debug: TestRouter._debug("    - node: %r", node)
 
                 # bind a client state machine to the node
@@ -298,16 +305,20 @@ class TestRouter(unittest.TestCase):
         is given a reference to the test method."""
         if _debug: TestRouter._debug("teardown_method %r", method)
 
-        # reset the time machine
-        reset_time_machine()
-        if _debug: TestRouter._debug("    - time machine reset")
-
         # run the group
         self.smg.run()
 
         # run it for some time
         run_time_machine(60.0)
-        if _debug: TestRouter._debug("    - time machine finished")
+        if _debug:
+            TestRouter._debug("    - time machine finished")
+            for state_machine in self.smg.state_machines:
+                TestRouter._debug("    - machine: %r", state_machine)
+                for direction, pdu in state_machine.transaction_log:
+                    TestRouter._debug("        %s %s", direction, str(pdu))
+
+            # traffic log has what was processed on each vlan
+            self.traffic_log.dump(TestRouter._debug)
 
         # check for success
         all_success, some_failed = self.smg.check_for_success()

@@ -71,8 +71,6 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
         # test bad integer
         with self.assertRaises(ValueError):
             Address(-1)
-        with self.assertRaises(ValueError):
-            Address(256)
 
     def test_address_ipv4_str(self):
         if _debug: TestAddress._debug("test_address_ipv4_str")
@@ -90,7 +88,7 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
         # test IPv4 local station address with unrecognized port
         test_addr = Address("1.2.3.4:47999")
         self.match_address(test_addr, 2, None, 6, '01020304bb7f')
-        assert str(test_addr) == "0x01020304bb7f"
+        assert str(test_addr) == "1.2.3.4:47999"
 
     def test_address_ipv4_unicode(self):
         if _debug: TestAddress._debug("test_address_ipv4_unicode")
@@ -108,7 +106,7 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
         # test IPv4 local station address with unrecognized port
         test_addr = Address(u"1.2.3.4:47999")
         self.match_address(test_addr, 2, None, 6, '01020304bb7f')
-        assert str(test_addr) == u"0x01020304bb7f"
+        assert str(test_addr) == u"1.2.3.4:47999"
 
     def test_address_eth_str(self):
         if _debug: TestAddress._debug("test_address_eth_str")
@@ -116,7 +114,7 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
         # test Ethernet local station address
         test_addr = Address("01:02:03:04:05:06")
         self.match_address(test_addr, 2, None, 6, '010203040506')
-        assert str(test_addr) == "0x010203040506"
+        assert str(test_addr) == "01:02:03:04:05:06"
 
     def test_address_eth_unicode(self):
         if _debug: TestAddress._debug("test_address_eth_unicode")
@@ -124,7 +122,7 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
         # test Ethernet local station address
         test_addr = Address(u"01:02:03:04:05:06")
         self.match_address(test_addr, 2, None, 6, '010203040506')
-        assert str(test_addr) == u"0x010203040506"
+        assert str(test_addr) == u"01:02:03:04:05:06"
 
     def test_address_local_station_str(self):
         if _debug: TestAddress._debug("test_address_local_station_str")
@@ -396,10 +394,6 @@ class TestRemoteStation(unittest.TestCase, MatchAddressMixin):
         # two parameters, correct types
         with self.assertRaises(TypeError):
             RemoteStation()
-        with self.assertRaises(TypeError):
-            RemoteStation(1, 2, 3)
-        with self.assertRaises(TypeError):
-            RemoteStation('x', 2)
 
         # test bad network
         with self.assertRaises(ValueError):
@@ -448,10 +442,6 @@ class TestLocalBroadcast(unittest.TestCase, MatchAddressMixin):
 
     def test_local_broadcast(self):
         if _debug: TestLocalBroadcast._debug("test_local_broadcast")
-
-        # no parameters
-        with self.assertRaises(TypeError):
-            LocalBroadcast(1)
 
         test_addr = LocalBroadcast()
         self.match_address(test_addr, 1, None, None, None)

@@ -12,7 +12,7 @@ from copy import deepcopy
 from .errors import ConfigurationError
 from .debugging import ModuleLogger, bacpypes_debugging
 
-from .pdu import Address
+from .pdu import Address, IPv4Address
 from .comm import Client, Server, bind
 from .task import OneShotFunction
 
@@ -148,129 +148,151 @@ class Node(Server):
 
 
 #
-#   IPNetwork
+#   IPv4Network
 #
 
 @bacpypes_debugging
-class IPNetwork(Network):
+class IPv4Network(Network):
 
     """
     IPNetwork instances are Network objects where the addresses on the
-    network are tuples that would be used for sockets like ('1.2.3.4', 5).
-    The first node added to the network sets the broadcast address, like
-    ('1.2.3.255', 5) and the other nodes must have the same tuple.
+    network are IPv4 socket tuples.
     """
 
-    def __init__(self):
-        if _debug: IPNetwork._debug("__init__")
+    def __init__(self, address):
+        if _debug: IPv4Network._debug("__init__ %r", address)
         Network.__init__(self)
 
-    def add_node(self, node):
-        if _debug: IPNetwork._debug("add_node %r", node)
+        if isinstance(address, str):
+            addr = IPv4Address(address)
+        elif isinstance(address, IPv4Address):
+            addr = address
+        else:
+            raise TypeError("address")
 
-        # first node sets the broadcast tuple, other nodes much match
-        if not self.nodes:
-            self.broadcast_address = node.addrBroadcastTuple
-        elif node.addrBroadcastTuple != self.broadcast_address:
-            raise ValueError("nodes must all have the same broadcast tuple")
+        # make sure this is just a network
+        if int(addr) & int(addr.hostmask):
+            raise ValueError("%s has host bits set" % (address,))
+
+        # save the network for new nodes and broadcast address
+        self.network = addr.network
+        if _debug: IPv4Network._debug("    - network: %r", self.network)
+
+        self.broadcast_address = addr.addrBroadcastTuple
+        if _debug: IPv4Network._debug("    - broadcast_address: %r", self.broadcast_address)
+
+    def add_node(self, node):
+        if _debug: IPv4Network._debug("add_node %r", node)
+
+        # convert the tuple to an address
+        addr = IPv4Address(node.address)
+
+        # first node sets the network and broadcast tuple, other nodes much match
+        if not self.network:
+            self.network = addr.network
+
+        # make sure the node is in the network
+        if addr.ip not in self.network:
+            raise ValueError("node %s not on network %s" % (addr, self.network))
 
         # continue along
         Network.add_node(self, node)
 
 
 #
-#   IPNode
+#   IPv4Node
 #
 
 @bacpypes_debugging
-class IPNode(Node):
+class IPv4Node(Node):
 
     """
-    An IPNode is a Node where the address is an Address that has an address
-    tuple and a broadcast tuple that would be used for socket communications.
+    An IPv4Node is a Node connected to an IPv4Network.
     """
 
     def __init__(self, addr, lan=None, promiscuous=False, spoofing=False, sid=None):
-        if _debug: IPNode._debug("__init__ %r lan=%r", addr, lan)
+        if _debug: IPv4Node._debug("__init__ %r lan=%r", addr, lan)
 
         # make sure it's an Address that has appropriate pieces
-        if not isinstance(addr, Address) or (not hasattr(addr, 'addrTuple')) \
-            or (not hasattr(addr, 'addrBroadcastTuple')):
-            raise ValueError("malformed address")
-
-        # save the address information
-        self.addrTuple = addr.addrTuple
-        self.addrBroadcastTuple = addr.addrBroadcastTuple
+        if isinstance(addr, str):
+            addrTuple = IPv4Address(addr).addrTuple
+        elif isinstance(addr, IPv4Address):
+            addrTuple = addr.addrTuple
+        elif isinstance(addr, tuple):
+            addrTuple = addr
+        else:
+            raise TypeError("address")
 
         # continue initializing
-        Node.__init__(self, addr.addrTuple, lan=lan, promiscuous=promiscuous, spoofing=spoofing, sid=sid)
+        Node.__init__(self, addrTuple, lan=lan, promiscuous=promiscuous, spoofing=spoofing, sid=sid)
 
 
 #
-#   IPRouterNode
+#   IPv4RouterNode
 #
 
 @bacpypes_debugging
-class IPRouterNode(Client):
+class IPv4RouterNode(Client):
 
-    def __init__(self, router, addr, lan=None):
-        if _debug: IPRouterNode._debug("__init__ %r %r lan=%r", router, addr, lan)
+    """
+    An instance of this class acts as an IPv4Node and forwards PDUs to the
+    IPv4Router for processing.
+    """
+
+    def __init__(self, router, addr, lan):
+        if _debug: IPv4RouterNode._debug("__init__ %r %r lan=%r", router, addr, lan)
 
         # save the reference to the router
         self.router = router
+        self.network = lan.network
 
         # make ourselves an IPNode and bind to it
-        self.node = IPNode(addr, lan=lan, promiscuous=True, spoofing=True)
+        self.node = IPv4Node(addr, lan=lan, promiscuous=True, spoofing=True)
         bind(self, self.node)
 
-        # save our mask and subnet
-        self.addrMask = addr.addrMask
-        self.addrSubnet = addr.addrSubnet
-
     def confirmation(self, pdu):
-        if _debug: IPRouterNode._debug("confirmation %r", pdu)
+        if _debug: IPv4RouterNode._debug("confirmation %r", pdu)
 
         self.router.process_pdu(self, pdu)
 
     def process_pdu(self, pdu):
-        if _debug: IPRouterNode._debug("process_pdu %r", pdu)
+        if _debug: IPv4RouterNode._debug("process_pdu %r", pdu)
 
         # pass it downstream
         self.request(pdu)
 
 #
-#   IPRouter
+#   IPv4Router
 #
 
 @bacpypes_debugging
-class IPRouter:
+class IPv4Router:
 
     def __init__(self):
-        if _debug: IPRouter._debug("__init__")
+        if _debug: IPv4Router._debug("__init__")
 
         # connected network nodes
         self.nodes = []
 
     def add_network(self, addr, lan):
-        if _debug: IPRouter._debug("add_network %r %r", addr, lan)
+        if _debug: IPv4Router._debug("add_network %r %r", addr, lan)
 
-        node = IPRouterNode(self, addr, lan)
-        if _debug: IPRouter._debug("    - node: %r", node)
+        node = IPv4RouterNode(self, addr, lan)
+        if _debug: IPv4Router._debug("    - node: %r", node)
 
         self.nodes.append(node)
 
     def process_pdu(self, node, pdu):
-        if _debug: IPRouter._debug("process_pdu %r %r", node, pdu)
+        if _debug: IPv4Router._debug("process_pdu %r %r", node, pdu)
 
-        # unpack the address part of the destination
-        addrstr = socket.inet_aton(pdu.pduDestination[0])
-        ipaddr = struct.unpack('!L', addrstr)[0]
-        if _debug: IPRouter._debug("    - ipaddr: %r", ipaddr)
+        # make an address out of the destination
+        dest_address = IPv4Address(pdu.pduDestination[0])
 
         # loop through the other nodes
-        for inode in self.nodes:
-            if inode is not node:
-                if (ipaddr & inode.addrMask) == inode.addrSubnet:
-                    if _debug: IPRouter._debug("    - inode: %r", inode)
-                    inode.process_pdu(pdu)
+        for router_node in self.nodes:
+            if router_node is node:
+                continue
+            if dest_address.ip in router_node.network:
+                if _debug: IPv4Router._debug("    - router_node: %r", router_node)
+                router_node.process_pdu(pdu)
 
