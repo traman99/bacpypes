@@ -11,12 +11,15 @@ import unittest
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger, xtob
 
 from bacpypes.pdu import PDU, LocalBroadcast
+from bacpypes.bvll import OriginalUnicastNPDU, OriginalBroadcastNPDU
 from bacpypes.vlan import IPv4Network
 
 from ..state_machine import match_pdu, StateMachineGroup, TrafficLog
 from ..time_machine import reset_time_machine, run_time_machine
 
-from .helpers import SnifferNode, SimpleNode
+from .helpers import (
+    SnifferStateMachine, BIPSimpleStateMachine,
+    )
 
 # some debugging
 _debug = 0
@@ -46,15 +49,15 @@ class TNetwork(StateMachineGroup):
         self.vlan.traffic_log = self.traffic_log
 
         # test device
-        self.td = SimpleNode("192.168.4.1/24", self.vlan)
+        self.td = BIPSimpleStateMachine("192.168.4.1/24", self.vlan)
         self.append(self.td)
 
         # implementation under test
-        self.iut = SimpleNode("192.168.4.2/24", self.vlan)
+        self.iut = BIPSimpleStateMachine("192.168.4.2/24", self.vlan)
         self.append(self.iut)
 
         # sniffer node
-        self.sniffer = SnifferNode("192.168.4.254/24", self.vlan)
+        self.sniffer = SnifferStateMachine("192.168.4.254/24", self.vlan)
         self.append(self.sniffer)
 
     def run(self, time_limit=60.0):
@@ -115,12 +118,10 @@ class TestSimple(unittest.TestCase):
         tnet.iut.start_state.receive(PDU, pduSource=tnet.td.address).success()
 
         # sniffer sees message on the wire
-        tnet.sniffer.start_state.receive(PDU,
+        tnet.sniffer.start_state.receive(OriginalUnicastNPDU,
             pduSource=tnet.td.address.addrTuple, 
             pduDestination=tnet.iut.address.addrTuple,
-            pduData=xtob('81.0a.0008'      # original unicast bvlci
-                'deadbeef'                  # PDU being unicast
-                ),
+            pduData=pdu_data,
             ).timeout(1.0).success()
 
         # run the group
@@ -143,12 +144,10 @@ class TestSimple(unittest.TestCase):
         tnet.iut.start_state.receive(PDU, pduSource=tnet.td.address).success()
 
         # sniffer sees message on the wire
-        tnet.sniffer.start_state.receive(PDU,
-            pduSource=tnet.td.address.addrTuple, 
-            pduDestination=('192.168.4.255', 47808),
-            pduData=xtob('81.0b.0008'      # original broadcast bvlci
-                'deadbeef'                  # PDU being unicast
-                ),
+        tnet.sniffer.start_state.receive(OriginalBroadcastNPDU,
+            pduSource=tnet.td.address.addrTuple,
+#           pduDestination=('192.168.4.255', 47808),
+            pduData=pdu_data,
             ).timeout(1.0).success()
 
         # run the group

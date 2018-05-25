@@ -32,6 +32,7 @@ class Network:
 
         self.name = name
         self.nodes = []
+
         self.broadcast_address = broadcast_address
         self.drop_percent = drop_percent
 
@@ -159,9 +160,9 @@ class IPv4Network(Network):
     network are IPv4 socket tuples.
     """
 
-    def __init__(self, address):
-        if _debug: IPv4Network._debug("__init__ %r", address)
-        Network.__init__(self)
+    def __init__(self, address, name=''):
+        if _debug: IPv4Network._debug("__init__ %r name=%r", address, name)
+        Network.__init__(self, name=name)
 
         if isinstance(address, str):
             addr = IPv4Address(address)
@@ -234,6 +235,7 @@ class IPv4Node(Node):
 @bacpypes_debugging
 class IPv4RouterNode(Client):
 
+<<<<<<< HEAD
     """
     An instance of this class acts as an IPv4Node and forwards PDUs to the
     IPv4Router for processing.
@@ -241,10 +243,18 @@ class IPv4RouterNode(Client):
 
     def __init__(self, router, addr, lan):
         if _debug: IPv4RouterNode._debug("__init__ %r %r lan=%r", router, addr, lan)
+=======
+    def __init__(self, router, addr, lan):
+        if _debug: IPRouterNode._debug("__init__ %r %r lan=%r", router, addr, lan)
+>>>>>>> stage
 
-        # save the reference to the router
+        # save the references to the router for packets and the lan for debugging
         self.router = router
+<<<<<<< HEAD
         self.network = lan.network
+=======
+        self.lan = lan
+>>>>>>> stage
 
         # make ourselves an IPNode and bind to it
         self.node = IPv4Node(addr, lan=lan, promiscuous=True, spoofing=True)
@@ -260,6 +270,10 @@ class IPv4RouterNode(Client):
 
         # pass it downstream
         self.request(pdu)
+
+    def __repr__(self):
+        return "<%s for %s>" % (self.__class__.__name__, self.lan.name)
+
 
 #
 #   IPv4Router
