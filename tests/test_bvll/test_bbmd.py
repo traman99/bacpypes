@@ -11,7 +11,7 @@ import unittest
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger, xtob
 
 from bacpypes.pdu import Address, PDU, LocalBroadcast
-from bacpypes.vlan import IPNetwork, IPRouter
+from bacpypes.vlan import IPv4Network, IPv4Router
 from bacpypes.bvll import (
     Result,
     WriteBroadcastDistributionTable,
@@ -66,13 +66,13 @@ class TNetwork(StateMachineGroup):
         self.traffic_log = TrafficLog()
 
         # make a router
-        self.router = IPRouter()
+        self.router = IPv4Router()
 
         # make the networks
         self.vlan = []
         for net in range(1, count + 1):
             # make a network and set the traffic log
-            ip_network = IPNetwork("192.168.{}.0/24".format(net))
+            ip_network = IPv4Network("192.168.{}.0/24".format(net))
             ip_network.traffic_log = self.traffic_log
 
             # make a router

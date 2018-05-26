@@ -10,8 +10,8 @@ import socket
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
 from bacpypes.comm import Client, Server, ApplicationServiceElement, bind
-from bacpypes.pdu import Address, LocalBroadcast, PDU, unpack_ip_addr
-from bacpypes.vlan import IPv4Node
+from bacpypes.pdu import Address, LocalBroadcast, PDU
+from bacpypes.vlan import IPv4Address, IPv4Node
 
 from bacpypes.app import DeviceInfoCache, Application
 from bacpypes.appservice import StateMachineAccessPoint, ApplicationServiceAccessPoint
@@ -67,14 +67,18 @@ class FauxMultiplexer(Client, Server):
     def indication(self, pdu):
         if _debug: FauxMultiplexer._debug("indication %r", pdu)
 
-        # check for a broadcast message
-        if pdu.pduDestination.addrType == Address.localBroadcastAddr:
+        # check for different types of addresses
+        if isinstance(pdu.pduDestination, LocalBroadcast):
             dest = self.broadcast_tuple
             if _debug: FauxMultiplexer._debug("    - requesting local broadcast: %r", dest)
 
-        elif pdu.pduDestination.addrType == Address.localStationAddr:
+        elif isinstance(pdu.pduDestination, IPv4Address):
             dest = pdu.pduDestination.addrTuple
             if _debug: FauxMultiplexer._debug("    - requesting local station: %r", dest)
+
+        elif isinstance(pdu.pduDestination, tuple):
+            dest = pdu.pduDestination
+            if _debug: FauxMultiplexer._debug("    - requesting specific address: %r", dest)
 
         else:
             raise RuntimeError("invalid destination address type")
@@ -117,14 +121,8 @@ class SnifferStateMachine(ClientStateMachine):
         self.name = address
         self.address = Address(address)
 
-<<<<<<< HEAD
-        # create a promiscuous node, added to the network
-        self.node = IPv4Node(self.address, vlan, promiscuous=True)
-        if _debug: SnifferNode._debug("    - node: %r", self.node)
-=======
         # BACnet/IP interpreter
         self.annexj = AnnexJCodec()
->>>>>>> stage
 
         # fake multiplexer has a VLAN node in it
         self.mux = FauxMultiplexer(self.address, vlan)

@@ -297,7 +297,7 @@ class IPv4Router:
         for router_node in self.nodes:
             if router_node is node:
                 continue
-            if dest_address.ip in router_node.network:
+            if dest_address.ip in router_node.lan.network:
                 if _debug: IPv4Router._debug("    - router_node: %r", router_node)
                 router_node.process_pdu(pdu)
 

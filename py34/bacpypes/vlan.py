@@ -235,7 +235,6 @@ class IPv4Node(Node):
 @bacpypes_debugging
 class IPv4RouterNode(Client):
 
-<<<<<<< HEAD
     """
     An instance of this class acts as an IPv4Node and forwards PDUs to the
     IPv4Router for processing.
@@ -243,18 +242,10 @@ class IPv4RouterNode(Client):
 
     def __init__(self, router, addr, lan):
         if _debug: IPv4RouterNode._debug("__init__ %r %r lan=%r", router, addr, lan)
-=======
-    def __init__(self, router, addr, lan):
-        if _debug: IPRouterNode._debug("__init__ %r %r lan=%r", router, addr, lan)
->>>>>>> stage
 
         # save the references to the router for packets and the lan for debugging
         self.router = router
-<<<<<<< HEAD
-        self.network = lan.network
-=======
         self.lan = lan
->>>>>>> stage
 
         # make ourselves an IPNode and bind to it
         self.node = IPv4Node(addr, lan=lan, promiscuous=True, spoofing=True)
@@ -306,7 +297,7 @@ class IPv4Router:
         for router_node in self.nodes:
             if router_node is node:
                 continue
-            if dest_address.ip in router_node.network:
+            if dest_address.ip in router_node.lan.network:
                 if _debug: IPv4Router._debug("    - router_node: %r", router_node)
                 router_node.process_pdu(pdu)
 

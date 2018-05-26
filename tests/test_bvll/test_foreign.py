@@ -54,23 +54,14 @@ class TNetwork(StateMachineGroup):
         self.router = IPv4Router()
 
         # make a home LAN
-<<<<<<< HEAD
-        self.home_vlan = IPv4Network("192.168.5.0/24")
-        self.router.add_network("192.168.5.1/24", self.home_vlan)
-
-        # make a remote LAN
-        self.remote_vlan = IPv4Network("192.168.6.0/24")
-        self.router.add_network("192.168.6.1/24", self.remote_vlan)
-=======
-        self.vlan_5 = IPNetwork("192.168.5.0/24")
+        self.vlan_5 = IPv4Network("192.168.5.0/24")
         self.vlan_5.traffic_log = self.traffic_log
         self.router.add_network(Address("192.168.5.1/24"), self.vlan_5)
 
         # make a remote LAN
-        self.vlan_6 = IPNetwork("192.168.6.0/24")
+        self.vlan_6 = IPv4Network("192.168.6.0/24")
         self.vlan_6.traffic_log = self.traffic_log
         self.router.add_network(Address("192.168.6.1/24"), self.vlan_6)
->>>>>>> stage
 
         # the foreign device
         self.fd = BIPForeignStateMachine("192.168.6.2/24", self.vlan_6)
