@@ -22,7 +22,7 @@ from bacpypes.local.device import LocalDeviceObject
 from bacpypes.service.device import WhoIsIAmServices
 from bacpypes.service.object import ReadWritePropertyServices
 
-from ..state_machine import ClientStateMachine, TrafficLog
+from ..state_machine import ClientStateMachine
 
 from bacpypes.bvllservice import BIPSimple, BIPForeign, BIPBBMD, AnnexJCodec
 
