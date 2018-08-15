@@ -983,7 +983,7 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
         if _debug: BIPBBMD._debug("delete_peer %r", addr)
 
         # see if it is an address or make it one
-        if isinstance(addr, Address):
+        if isinstance(addr, IPv4Address):
             pass
         elif isinstance(addr, str):
             addr = LocalStation(addr)

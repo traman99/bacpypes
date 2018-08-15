@@ -178,7 +178,6 @@ class DeviceInfoCache:
 
         elif key.addrType not in (Address.localStationAddr, Address.remoteStationAddr):
             raise TypeError("address must be a local or remote station")
-
         else:
             device_info = self.cache.get(key, None)
 
@@ -517,7 +516,7 @@ class BIPSimpleApplication(ApplicationIOController, WhoIsIAmServices, ReadWriteP
         bind(self.bip, self.annexj, self.mux.annexJ)
 
         # bind the BIP stack to the network, no network number
-        self.nsap.bind(self.bip)
+        self.nsap.bind(self.bip, address=self.localAddress)
 
     def close_socket(self):
         if _debug: BIPSimpleApplication._debug("close_socket")
@@ -578,7 +577,7 @@ class BIPForeignApplication(ApplicationIOController, WhoIsIAmServices, ReadWrite
         bind(self.bip, self.annexj, self.mux.annexJ)
 
         # bind the NSAP to the stack, no network number
-        self.nsap.bind(self.bip)
+        self.nsap.bind(self.bip, address=self.localAddress)
 
     def close_socket(self):
         if _debug: BIPForeignApplication._debug("close_socket")
@@ -619,4 +618,5 @@ class BIPNetworkApplication(NetworkServiceElement):
         bind(self.bip, self.annexj, self.mux.annexJ)
 
         # bind the NSAP to the stack, no network number
-        self.nsap.bind(self.bip)
+        self.nsap.bind(self.bip, address=self.localAddress)
+
