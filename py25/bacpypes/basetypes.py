@@ -1716,12 +1716,6 @@ class RouterEntry(Sequence):
         , Element('status', RouterEntryStatus)  # Defined Above
         ]
 
-class NameValue(Sequence):
-    sequenceElements = \
-        [ Element('name', CharacterString)
-        , Element('value', AnyAtomic)  # IS ATOMIC CORRECT HERE? value is limited to primitive datatypes and BACnetDateTime
-        ]
-
 class DeviceAddress(Sequence):
     sequenceElements = \
         [ Element('networkNumber', Unsigned)
@@ -2295,6 +2289,77 @@ class LogRecord(Sequence):
         , Element('logDatum', LogRecordLogDatum, 1)
         , Element('statusFlags', StatusFlags, 2, True)
         ]
+
+class NameValue(Sequence):
+
+    sequenceElements = \
+        [ Element('name', CharacterString, 0)
+        , Element('value', AnyAtomic, optional=True)
+        ]
+
+    def __init__(self, name=None, value=None):
+        # default to no value
+        self.name = name
+        self.value = None
+
+        if value is None:
+            pass
+        elif isinstance(value, (Atomic, DateTime)):
+            self.value = value
+        elif isinstance(value, Tag):
+            self.value = value.app_to_object()
+        else:
+            raise TypeError("invalid constructor datatype")
+
+    def encode(self, taglist):
+        # build a tag and encode the name into it
+        tag = Tag()
+        CharacterString(self.name).encode(tag)
+        taglist.append(tag.app_to_context(0))
+
+        # the value is optional
+        if self.value is not None:
+            if isinstance(self.value, DateTime):
+                # has its own encoder
+                self.value.encode(taglist)
+            else:
+                # atomic values encode into a tag
+                tag = Tag()
+                self.value.encode(tag)
+                taglist.append(tag)
+
+    def decode(self, taglist):
+        # no contents yet
+        self.name = None
+        self.value = None
+
+        # look for the context encoded character string
+        tag = taglist.Peek()
+        if (tag is None) or (tag.tagClass != Tag.contextTagClass) or (tag.tagNumber != 0):
+            raise MissingRequiredParameter("%s is a missing required element of %s" % ('name', self.__class__.__name__))
+
+        # pop it off and save the value
+        taglist.Pop()
+        tag = tag.context_to_app(Tag.characterStringAppTag)
+        self.name = CharacterString(tag).value
+
+        # look for the optional application encoded value
+        tag = taglist.Peek()
+        if tag and (tag.tagClass == Tag.applicationTagClass):
+
+            # if it is a date check the next one for a time
+            if (tag.tagNumber == Tag.dateAppTag) and (len(taglist.tagList) >= 2):
+                next_tag = taglist.tagList[1]
+
+                if (next_tag.tagClass == Tag.applicationTagClass) and (next_tag.tagNumber == Tag.timeAppTag):
+
+                    self.value = DateTime()
+                    self.value.decode(taglist)
+
+            # just a primitive value
+            if self.value is None:
+                taglist.Pop()
+                self.value = tag.app_to_object()
 
 class NetworkSecurityPolicy(Sequence):
     sequenceElements = \
