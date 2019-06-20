@@ -3,9 +3,10 @@
 import re
 
 from .debugging import bacpypes_debugging, ModuleLogger
+from .errors import MissingRequiredParameter
 
-from .primitivedata import Atomic, Null, CharacterString
-from .constructeddata import SequenceOf, Array, ArrayOf, AnyAtomic
+from .primitivedata import Tag, Atomic, Null, CharacterString
+from .constructeddata import Element, Sequence, SequenceOf, Array, ArrayOf, AnyAtomic
 from .basetypes import DateTime
 
 # some debugging

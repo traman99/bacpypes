@@ -4,7 +4,7 @@
 Base Types
 """
 
-from .debugging import bacpypes_debugging, ModuleLogger
+from .debugging import ModuleLogger
 
 from .primitivedata import BitString, Boolean, CharacterString, Date, Double, \
     Enumerated, Integer, Null, ObjectIdentifier, OctetString, Real, Time, \
