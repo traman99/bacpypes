@@ -385,7 +385,7 @@ class StandardProperty(Property):
 @bacpypes_debugging
 class OptionalProperty(StandardProperty):
 
-    """The property is required to be present and readable using BACnet services."""
+    """The property is optional and need not be present."""
 
     def __init__(self, identifier, datatype, default=None, optional=True, mutable=False):
         if _debug:
@@ -470,6 +470,9 @@ class Object:
         , OptionalProperty('description', CharacterString)
         , OptionalProperty('profileName', CharacterString)
         , ReadableProperty('propertyList', ArrayOf(PropertyIdentifier))
+        , OptionalProperty('tags', ArrayOfNameValue)
+        , OptionalProperty('profileLocation', CharacterString)
+        , OptionalProperty('profileName', CharacterString)
         ]
     _properties = {}
 
@@ -1953,10 +1956,6 @@ class NetworkPortObject(Object):
         , OptionalProperty('eventMessageTextsConfig', ArrayOf(CharacterString, 3))  #352
         , OptionalProperty('eventState', EventState)  #36
         , ReadableProperty('reliabilityEvaluationInhibit', Boolean) #357
-        , OptionalProperty('propertyList', ArrayOf(PropertyIdentifier)) #371
-        , OptionalProperty('tags', ArrayOfNameValue)  #486
-        , OptionalProperty('profileLocation', CharacterString)  #91
-        , OptionalProperty('profileName', CharacterString)  #168
         ]
 
 @register_object_type

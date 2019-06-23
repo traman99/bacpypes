@@ -1106,8 +1106,6 @@ class PropertyIdentifier(Enumerated):
     vendor_range = (512, 4194303)
     enumerations = \
         { 'absenteeLimit':244
-        , 'tags':486
-        , 'profileLocation':91
         , 'eventDetectionEnabled':353
         , 'apduLength':388
         , 'linkSpeed':420
@@ -1406,6 +1404,7 @@ class PropertyIdentifier(Enumerated):
         , 'priorityForWriting':88
         , 'processIdentifier':89
         , 'processIdentifierFilter':361
+        , 'profileLocation':485
         , 'profileName':168
         , 'programChange':90
         , 'programLocation':91
@@ -1467,6 +1466,7 @@ class PropertyIdentifier(Enumerated):
         , 'supportedFormatClasses':305
         , 'supportedSecurityAlgorithms':336
         , 'systemStatus':112
+        , 'tags':486
         , 'threatAuthority':306
         , 'threatLevel':307
         , 'timeDelay':113
