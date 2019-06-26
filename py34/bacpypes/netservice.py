@@ -7,6 +7,7 @@ Network Service
 from copy import deepcopy as _deepcopy
 
 from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
+from .settings import route_aware
 from .errors import ConfigurationError
 
 from .comm import Client, Server, bind, \
@@ -313,18 +314,27 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server, DebugContents):
 
         # local broadcast given to local adapter
         if (npdu.pduDestination.addrType == Address.localBroadcastAddr):
+            if route_aware and npdu.pduDestination.addrRoute:
+                if _debug: NetworkServiceAccessPoint._debug("    - routed: %r", npdu.pduDestination.addrRoute)
+                npdu.pduDestination = LocalBroadcast(route=npdu.pduDestination.addrRoute)
             adapter.process_npdu(npdu)
             return
 
         # global broadcast
         if (npdu.pduDestination.addrType == Address.globalBroadcastAddr):
             # set the destination
-            npdu.pduDestination = LocalBroadcast()
-            npdu.npduDADR = apdu.pduDestination
+            if route_aware and npdu.pduDestination.addrRoute:
+                if _debug: NetworkServiceAccessPoint._debug("    - routed: %r", npdu.pduDestination.addrRoute)
+                npdu.pduDestination = LocalBroadcast(route=npdu.pduDestination.addrRoute)
+                npdu.npduDADR = apdu.pduDestination
+                adapter.process_npdu(npdu)
+            else:
+                npdu.pduDestination = LocalBroadcast()
+                npdu.npduDADR = apdu.pduDestination
 
-            # send it to all of connected adapters
-            for xadapter in self.adapters.values():
-                xadapter.process_npdu(npdu)
+                # send it to all of connected adapters
+                for xadapter in self.adapters.values():
+                    xadapter.process_npdu(npdu)
             return
 
         # remote broadcast
@@ -337,10 +347,19 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server, DebugContents):
         if (dnet == adapter.adapterNet):
             if (npdu.pduDestination.addrType == Address.remoteStationAddr):
                 if _debug: NetworkServiceAccessPoint._debug("    - mapping remote station to local station")
-                npdu.pduDestination = LocalStation(npdu.pduDestination.addrAddr)
+
+                if route_aware and npdu.pduDestination.addrRoute:
+                    if _debug: NetworkServiceAccessPoint._debug("    - routed: %r", npdu.pduDestination.addrRoute)
+                    npdu.pduDestination = npdu.pduDestination.addrRoute
+                else:
+                    npdu.pduDestination = LocalStation(npdu.pduDestination.addrAddr)
             elif (npdu.pduDestination.addrType == Address.remoteBroadcastAddr):
                 if _debug: NetworkServiceAccessPoint._debug("    - mapping remote broadcast to local broadcast")
-                npdu.pduDestination = LocalBroadcast()
+                if route_aware and npdu.pduDestination.addrRoute:
+                    if _debug: NetworkServiceAccessPoint._debug("    - routed: %r", npdu.pduDestination.addrRoute)
+                    npdu.pduDestination = npdu.pduDestination.addrRoute
+                else:
+                    npdu.pduDestination = LocalBroadcast()
             else:
                 raise RuntimeError("addressing problem")
 
@@ -490,33 +509,33 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server, DebugContents):
                 if (len(self.adapters) > 1) and (adapter != self.local_adapter):
                     # combine the source address
                     if not npdu.npduSADR:
-                        apdu.pduSource = RemoteStation( adapter.adapterNet, npdu.pduSource.addrAddr, route=npdu.pduSource.addrRoute)
+                        apdu.pduSource = RemoteStation( adapter.adapterNet, npdu.pduSource.addrAddr)
                     else:
                         apdu.pduSource = npdu.npduSADR
-                    if route_aware and npdu.pduSource.addrRoute:
-                        if _debug: NetworkServiceAccessPoint._debug("    - updating source route: %r", apdu.pduSource)
-                        apdu.pduSource.addrRoute = npdu.pduSource.addrRoute
+                    if route_aware:
+                        apdu.pduSource.addrRoute = npdu.pduSource
 
                     # map the destination
                     if not npdu.npduDADR:
                         apdu.pduDestination = self.local_address
                     elif npdu.npduDADR.addrType == Address.globalBroadcastAddr:
-                        apdu.pduDestination = GlobalBroadcast(route=npdu.pduDestination.addrRoute)
+                        apdu.pduDestination = GlobalBroadcast()
                     elif npdu.npduDADR.addrType == Address.remoteBroadcastAddr:
-                        apdu.pduDestination = LocalBroadcast(route=npdu.pduDestination.addrRoute)
+                        apdu.pduDestination = LocalBroadcast()
                     else:
                         apdu.pduDestination = self.local_address
                 else:
                     # combine the source address
                     if npdu.npduSADR:
                         apdu.pduSource = npdu.npduSADR
+                        if route_aware:
+                            apdu.pduSource.addrRoute = npdu.pduSource
                     else:
                         apdu.pduSource = npdu.pduSource
 
                     # pass along global broadcast
                     if npdu.npduDADR and npdu.npduDADR.addrType == Address.globalBroadcastAddr:
-                        NetworkServiceAccessPoint._debug("    - ###: %r", npdu.pduDestination.addrRoute)
-                        apdu.pduDestination = GlobalBroadcast(route=npdu.pduDestination.addrRoute)
+                        apdu.pduDestination = GlobalBroadcast()
                     else:
                         apdu.pduDestination = npdu.pduDestination
                 if _debug:

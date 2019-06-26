@@ -28,10 +28,11 @@ _log = ModuleLogger(globals())
 #   Address
 #
 
+_field_address = "(\d+)"
 _ip_address_port = "(\d+\.\d+\.\d+\.\d+)(?::(\d+))?"
 _ip_address_mask_port = "(\d+\.\d+\.\d+\.\d+)(?:/(\d+))?(?::(\d+))?"
 _net_ip_address_port = "(\d+):" + _ip_address_port
-_at_route = "(?:[@]" + _ip_address_port + ")?"
+_at_route = "(?:[@](?:" + _field_address + "|" + _ip_address_port + "))?"
 
 ip_address_port_re = re.compile("^" + _ip_address_port + "$")
 ip_address_mask_port_re = re.compile("^" + _ip_address_mask_port + "$")
@@ -133,7 +134,7 @@ class Address:
                 local_broadcast,
                 local_addr,
                 local_ip_addr, local_ip_net, local_ip_port,
-                route_ip_addr, route_ip_port
+                route_addr, route_ip_addr, route_ip_port
                 ) = m.groups()
 
                 if global_broadcast and local_broadcast:
@@ -193,10 +194,13 @@ class Address:
                     self.addrAddr = addrstr + struct.pack('!H', self.addrPort & _short_mask)
                     self.addrLen = 6
 
-                if route_ip_addr:
+                if route_addr:
+                    self.addrRoute = Address(int(route_addr))
+                    if _debug: Address._debug("    - addrRoute: %r", self.addrRoute)
+                elif route_ip_addr:
                     if not route_ip_port:
                         route_ip_port = '47808'
-                    self.addrRoute = (route_ip_addr, int(route_ip_port))
+                    self.addrRoute = Address((route_ip_addr, int(route_ip_port)))
                     if _debug: Address._debug("    - addrRoute: %r", self.addrRoute)
 
                 return
@@ -419,28 +423,40 @@ class Address:
             raise TypeError("unknown address type %d" % self.addrType)
 
         if self.addrRoute:
-            rslt += "@" + self.addrRoute[0]
-            if self.addrRoute[1] != 47808:
-                rslt += ":" + str(self.addrRoute[1])
+            rslt += "@" + str(self.addrRoute)
 
         return rslt
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.__str__())
 
-    def __hash__(self):
-        return hash( (self.addrType, self.addrNet, self.addrAddr) )
+    def _tuple(self):
+        return (self.addrType, self.addrNet, self.addrAddr)
 
-    def __eq__(self,arg):
+    def __hash__(self):
+        return hash(self._tuple())
+
+    def __eq__(self, arg):
         # try an coerce it into an address
         if not isinstance(arg, Address):
             arg = Address(arg)
 
         # all of the components must match
-        return (self.addrType == arg.addrType) and (self.addrNet == arg.addrNet) and (self.addrAddr == arg.addrAddr)
+        rslt = self._tuple() == arg._tuple()
+        if not rslt:
+            return False
 
-    def __ne__(self,arg):
+        # if both are route aware, routes must match
+        if self.addrRoute and arg.addrRoute:
+            rslt = (self.addrRoute and arg.addrRoute)
+
+        return rslt
+
+    def __ne__(self, arg):
         return not self.__eq__(arg)
+
+    def __lt__(self, arg):
+        return self._tuple() < arg._tuple()
 
     def dict_contents(self, use_dict=None, as_class=None):
         """Return the contents of an object as a dict."""

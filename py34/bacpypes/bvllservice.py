@@ -8,8 +8,8 @@ import sys
 import struct
 from time import time as _time
 
-from .settings import route_aware
 from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
+from .settings import route_aware
 
 from .udp import UDPDirector
 from .task import OneShotTask, RecurringTask
@@ -124,7 +124,7 @@ class UDPMultiplexer:
 
         # route aware
         if route_aware and pdu.pduDestination.addrRoute:
-            dest = pdu.pduDestination.addrRoute
+            dest = pdu.pduDestination.addrRoute.addrTuple
             if _debug: UDPMultiplexer._debug("    - requesting specific route: %r", dest)
 
         # broadcast message
@@ -165,9 +165,6 @@ class UDPMultiplexer:
         elif client is self.broadcast:
             if _debug: UDPMultiplexer._debug("    - broadcast to us")
             dest = LocalBroadcast()
-            if route_aware:
-                dest.addrRoute = pdu.pduSource
-                if _debug: UDPMultiplexer._debug("    - route aware: %r", dest.addrRoute)
         else:
             raise RuntimeError("confirmation mismatch")
         if _debug: UDPMultiplexer._debug("    - dest: %r", dest)
@@ -224,7 +221,7 @@ class BTR(Client, Server, DebugContents):
         # check for broadcasts
         elif pdu.pduDestination.addrType == Address.localBroadcastAddr:
             if route_aware and pdu.pduDestination.addrRoute:
-                xpdu = PDU(pdu.pduData, destination=Address(pduDestination.addrRoute))
+                xpdu = PDU(pdu.pduData, destination=pdu.pduDestination.addrRoute)
                 self.request(xpdu)
             else:
                 # loop through the peers
@@ -365,6 +362,8 @@ class BIPSimple(BIPSAP, Client, Server):
         if pdu.pduDestination.addrType == Address.localStationAddr:
             # make an original unicast PDU
             xpdu = OriginalUnicastNPDU(pdu, destination=pdu.pduDestination, user_data=pdu.pduUserData)
+            if route_aware and pdu.pduDestination.addrRoute:
+                xpdu.pduDestination = pdu.pduDestination.addrRoute
             if _debug: BIPSimple._debug("    - xpdu: %r", xpdu)
 
             # send it downstream
@@ -374,6 +373,8 @@ class BIPSimple(BIPSAP, Client, Server):
         elif pdu.pduDestination.addrType == Address.localBroadcastAddr:
             # make an original broadcast PDU
             xpdu = OriginalBroadcastNPDU(pdu, destination=pdu.pduDestination, user_data=pdu.pduUserData)
+            if route_aware and pdu.pduDestination.addrRoute:
+                xpdu.pduDestination = pdu.pduDestination.addrRoute
             if _debug: BIPSimple._debug("    - xpdu: %r", xpdu)
 
             # send it downstream
@@ -408,7 +409,7 @@ class BIPSimple(BIPSAP, Client, Server):
 
         elif isinstance(pdu, OriginalBroadcastNPDU):
             # build a PDU with a local broadcast address
-            xpdu = PDU(pdu.pduData, source=pdu.pduSource, destination=LocalBroadcast(route=pdu.pduDestination.addrRoute), user_data=pdu.pduUserData)
+            xpdu = PDU(pdu.pduData, source=pdu.pduSource, destination=LocalBroadcast(), user_data=pdu.pduUserData)
             if _debug: BIPSimple._debug("    - xpdu: %r", xpdu)
 
             # send it upstream
@@ -416,7 +417,10 @@ class BIPSimple(BIPSAP, Client, Server):
 
         elif isinstance(pdu, ForwardedNPDU):
             # build a PDU with the source from the real source
-            xpdu = PDU(pdu.pduData, source=pdu.bvlciAddress, destination=LocalBroadcast(route=pdu.pduDestination), user_data=pdu.pduUserData)
+            xpdu = PDU(pdu.pduData, source=pdu.bvlciAddress, destination=LocalBroadcast(), user_data=pdu.pduUserData)
+            if route_aware:
+                xpdu.pduSource.addrRoute = pdu.pduSource
+
             if _debug: BIPSimple._debug("    - xpdu: %r", xpdu)
 
             # send it upstream
@@ -511,8 +515,10 @@ class BIPForeign(BIPSAP, Client, Server, OneShotTask, DebugContents):
         # check for local stations
         if pdu.pduDestination.addrType == Address.localStationAddr:
             # make an original unicast PDU
-            xpdu = OriginalUnicastNPDU(pdu, user_data=pdu.pduUserData)
-            xpdu.pduDestination = pdu.pduDestination
+            xpdu = OriginalUnicastNPDU(pdu, destination=pdu.pduDestination, user_data=pdu.pduUserData)
+            if route_aware and pdu.pduDestination.addrRoute:
+                xpdu.pduDestination = pdu.pduDestination.addrRoute
+            if _debug: BIPForeign._debug("    - xpdu: %r", xpdu)
 
             # send it downstream
             self.request(xpdu)
@@ -524,12 +530,11 @@ class BIPForeign(BIPSAP, Client, Server, OneShotTask, DebugContents):
                 if _debug: BIPForeign._debug("    - packet dropped, unregistered")
                 return
 
-            # make an original broadcast PDU
-            xpdu = DistributeBroadcastToNetwork(pdu, user_data=pdu.pduUserData)
+            # make a broadcast PDU
+            xpdu = DistributeBroadcastToNetwork(pdu, destination=self.bbmdAddress, user_data=pdu.pduUserData)
             if route_aware and pdu.pduDestination.addrRoute:
-                xpdu.pduDestination = Address(pdu.pduDestination.addrRoute)
-            else:
-                xpdu.pduDestination = self.bbmdAddress
+                xpdu.pduDestination = pdu.pduDestination.addrRoute
+            if _debug: BIPForeign._debug("    - xpdu: %r", xpdu)
 
             # send it downstream
             self.request(xpdu)
@@ -583,6 +588,8 @@ class BIPForeign(BIPSAP, Client, Server, OneShotTask, DebugContents):
 
             # build a PDU with the source from the real source
             xpdu = PDU(pdu.pduData, source=pdu.bvlciAddress, destination=LocalBroadcast(), user_data=pdu.pduUserData)
+            if route_aware:
+                xpdu.pduSource.pduRoute = pdu.pduSource
 
             # send it upstream
             self.response(xpdu)
@@ -720,7 +727,7 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
             # make an original unicast PDU
             xpdu = OriginalUnicastNPDU(pdu, user_data=pdu.pduUserData)
             if route_aware and pdu.pduDestination.addrRoute:
-                xpdu.pduDestination = Address(pdu.pduDestination.addrRoute)
+                xpdu.pduDestination = pdu.pduDestination.addrRoute
             else:
                 xpdu.pduDestination = pdu.pduDestination
             if _debug: BIPBBMD._debug("    - original unicast xpdu: %r", xpdu)
@@ -731,15 +738,17 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
         # check for broadcasts
         elif pdu.pduDestination.addrType == Address.localBroadcastAddr:
             # make an original broadcast PDU
-            xpdu = OriginalBroadcastNPDU(pdu, user_data=pdu.pduUserData)
+            xpdu = OriginalBroadcastNPDU(pdu, destination=pdu.pduDestination, user_data=pdu.pduUserData)
             if route_aware and pdu.pduDestination.addrRoute:
-                xpdu.pduDestination = Address(pdu.pduDestination.addrRoute)
-            else:
-                xpdu.pduDestination = pdu.pduDestination
+                xpdu.pduDestination = pdu.pduDestination.addrRoute
             if _debug: BIPBBMD._debug("    - original broadcast xpdu: %r", xpdu)
 
             # send it downstream
             self.request(xpdu)
+
+            # skip other processing if the route was provided
+            if route_aware and pdu.pduDestination.addrRoute:
+                return
 
             # make a forwarded PDU
             xpdu = ForwardedNPDU(self.bbmdAddress, pdu, user_data=pdu.pduUserData)
@@ -796,6 +805,8 @@ class BIPBBMD(BIPSAP, Client, Server, RecurringTask, DebugContents):
             if self.serverPeer:
                 # build a PDU with a local broadcast address
                 xpdu = PDU(pdu.pduData, source=pdu.bvlciAddress, destination=LocalBroadcast(), user_data=pdu.pduUserData)
+                if route_aware:
+                    xpdu.pduSource.addrRoute = pdu.pduSource
                 if _debug: BIPBBMD._debug("    - upstream xpdu: %r", xpdu)
 
                 self.response(xpdu)
@@ -1059,11 +1070,9 @@ class BIPNAT(BIPSAP, Client, Server, RecurringTask, DebugContents):
             ###TODO the destination should be a peer or a registered foreign device
 
             # make an original unicast PDU
-            xpdu = OriginalUnicastNPDU(pdu, user_data=pdu.pduUserData)
+            xpdu = OriginalUnicastNPDU(pdu, destination=pdu.pduDestination, user_data=pdu.pduUserData)
             if route_aware and pdu.pduDestination.addrRoute:
-                xpdu.pduDestination = Address(pdu.pduDestination.addrRoute)
-            else:
-                xpdu.pduDestination = pdu.pduDestination
+                xpdu.pduDestination = pdu.pduDestination.addrRoute
             if _debug: BIPNAT._debug("    - xpdu: %r", xpdu)
 
             # send it downstream
@@ -1076,14 +1085,15 @@ class BIPNAT(BIPSAP, Client, Server, RecurringTask, DebugContents):
             if _debug: BIPNAT._debug("    - forwarded xpdu: %r", xpdu)
 
             if route_aware and pdu.pduDestination.addrRoute:
-                xpdu.pduDestination = Address(pdu.pduDestination.addrRoute)
+                xpdu.pduDestination = pdu.pduDestination.addrRoute
+                if _debug: BIPNAT._debug("        - sending to specific route: %r", xpdu.pduDestination)
                 self.request(xpdu)
             else:
                 # send it to the peers, all of them have all F's mask
                 for bdte in self.bbmdBDT:
                     if bdte != self.bbmdAddress:
                         xpdu.pduDestination = Address((bdte.addrIP, bdte.addrPort))
-                        BIPNAT._debug("        - sending to peer: %r", xpdu.pduDestination)
+                        if _debug: BIPNAT._debug("        - sending to peer: %r", xpdu.pduDestination)
                         self.request(xpdu)
 
                 # send it to the registered foreign devices
@@ -1133,6 +1143,8 @@ class BIPNAT(BIPSAP, Client, Server, RecurringTask, DebugContents):
 
             # build a PDU with the source from the real source
             xpdu = PDU(pdu.pduData, source=pdu.bvlciAddress, destination=LocalBroadcast(), user_data=pdu.pduUserData)
+            if route_aware:
+                xpdu.pduSource.addrRoute = pdu.pduSource
             if _debug: BIPNAT._debug("    - upstream xpdu: %r", xpdu)
 
             # send it upstream
