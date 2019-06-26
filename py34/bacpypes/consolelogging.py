@@ -10,6 +10,7 @@ import logging
 import logging.handlers
 import argparse
 
+from .settings import ini_file, debug, color, max_bytes, backup_count
 from .debugging import bacpypes_debugging, LoggingFormatter, ModuleLogger
 
 from configparser import ConfigParser as _ConfigParser
@@ -17,13 +18,6 @@ from configparser import ConfigParser as _ConfigParser
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
-
-# configuration
-BACPYPES_INI = os.getenv('BACPYPES_INI', 'BACpypes.ini')
-BACPYPES_DEBUG = os.getenv('BACPYPES_DEBUG', '')
-BACPYPES_COLOR = os.getenv('BACPYPES_COLOR', None)
-BACPYPES_MAXBYTES = int(os.getenv('BACPYPES_MAXBYTES', 1048576))
-BACPYPES_BACKUPCOUNT = int(os.getenv('BACPYPES_BACKUPCOUNT', 5))
 
 #
 #   ConsoleLogHandler
@@ -109,6 +103,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def parse_args(self, *args, **kwargs):
         """Parse the arguments as usual, then add default processing."""
+        global debug, color, max_bytes, backup_count
         if _debug: ArgumentParser._debug("parse_args")
 
         # pass along to the parent class
@@ -130,9 +125,9 @@ class ArgumentParser(argparse.ArgumentParser):
             result_args.debug = ["__main__"]
 
         # check for debugging from the environment
-        if BACPYPES_DEBUG:
-            result_args.debug.extend(BACPYPES_DEBUG.split())
-        if BACPYPES_COLOR:
+        if debug:
+            result_args.debug.extend(debug.split())
+        if color:
             result_args.color = True
 
         # keep track of which files are going to be used
@@ -157,11 +152,11 @@ class ArgumentParser(argparse.ArgumentParser):
                     if len(debug_specs) >= 3:
                         maxBytes = int(debug_specs[2])
                     else:
-                        maxBytes = BACPYPES_MAXBYTES
+                        maxBytes = max_bytes
                     if len(debug_specs) >= 4:
                         backupCount = int(debug_specs[3])
                     else:
-                        backupCount = BACPYPES_BACKUPCOUNT
+                        backupCount = backup_count
 
                     # create a handler
                     handler = logging.handlers.RotatingFileHandler(
@@ -195,12 +190,13 @@ class ConfigArgumentParser(ArgumentParser):
     def __init__(self, **kwargs):
         """Follow normal initialization and add BACpypes arguments."""
         if _debug: ConfigArgumentParser._debug("__init__")
+        global ini_file
         ArgumentParser.__init__(self, **kwargs)
 
         # add a way to read a configuration file
         self.add_argument('--ini',
             help="device object configuration file",
-            default=BACPYPES_INI,
+            default=ini_file,
             )
 
     def parse_args(self, *args, **kwargs):

@@ -13,7 +13,8 @@ from .comm import Client, Server, bind, \
     ServiceAccessPoint, ApplicationServiceElement
 from .task import FunctionTask
 
-from .pdu import Address, LocalBroadcast, LocalStation, PDU, RemoteStation
+from .pdu import Address, LocalBroadcast, LocalStation, PDU, RemoteStation, \
+    GlobalBroadcast
 from .npdu import NPDU, npdu_types, IAmRouterToNetwork, WhoIsRouterToNetwork, \
     WhatIsNetworkNumber, NetworkNumberIs
 from .apdu import APDU as _APDU
@@ -489,17 +490,20 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server, DebugContents):
                 if (len(self.adapters) > 1) and (adapter != self.local_adapter):
                     # combine the source address
                     if not npdu.npduSADR:
-                        apdu.pduSource = RemoteStation( adapter.adapterNet, npdu.pduSource.addrAddr )
+                        apdu.pduSource = RemoteStation( adapter.adapterNet, npdu.pduSource.addrAddr, route=npdu.pduSource.addrRoute)
                     else:
                         apdu.pduSource = npdu.npduSADR
+                    if route_aware and npdu.pduSource.addrRoute:
+                        if _debug: NetworkServiceAccessPoint._debug("    - updating source route: %r", apdu.pduSource)
+                        apdu.pduSource.addrRoute = npdu.pduSource.addrRoute
 
                     # map the destination
                     if not npdu.npduDADR:
                         apdu.pduDestination = self.local_address
                     elif npdu.npduDADR.addrType == Address.globalBroadcastAddr:
-                        apdu.pduDestination = npdu.npduDADR
+                        apdu.pduDestination = GlobalBroadcast(route=npdu.pduDestination.addrRoute)
                     elif npdu.npduDADR.addrType == Address.remoteBroadcastAddr:
-                        apdu.pduDestination = LocalBroadcast()
+                        apdu.pduDestination = LocalBroadcast(route=npdu.pduDestination.addrRoute)
                     else:
                         apdu.pduDestination = self.local_address
                 else:
@@ -511,7 +515,8 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server, DebugContents):
 
                     # pass along global broadcast
                     if npdu.npduDADR and npdu.npduDADR.addrType == Address.globalBroadcastAddr:
-                        apdu.pduDestination = npdu.npduDADR
+                        NetworkServiceAccessPoint._debug("    - ###: %r", npdu.pduDestination.addrRoute)
+                        apdu.pduDestination = GlobalBroadcast(route=npdu.pduDestination.addrRoute)
                     else:
                         apdu.pduDestination = npdu.pduDestination
                 if _debug:

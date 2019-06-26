@@ -150,7 +150,7 @@ class Address:
 
                 elif local_broadcast:
                     if _debug: Address._debug("    - local broadcast")
-                    self.addrType = Address.localBroadcast
+                    self.addrType = Address.localBroadcastAddr
 
                 elif net:
                     if _debug: Address._debug("    - remote station")
@@ -196,7 +196,7 @@ class Address:
                 if route_ip_addr:
                     if not route_ip_port:
                         route_ip_port = '47808'
-                    self.addrRoute = (route_ip_addr, route_ip_port)
+                    self.addrRoute = (route_ip_addr, int(route_ip_port))
                     if _debug: Address._debug("    - addrRoute: %r", self.addrRoute)
 
                 return
@@ -378,10 +378,10 @@ class Address:
 
     def __str__(self):
         if self.addrType == Address.nullAddr:
-            return 'Null'
+            rslt = 'Null'
 
         elif self.addrType == Address.localBroadcastAddr:
-            return '*'
+            rslt = '*'
 
         elif self.addrType == Address.localStationAddr:
             rslt = ''
@@ -395,15 +395,9 @@ class Address:
                         rslt += ':' + str(port)
                 else:
                     rslt += '0x' + btox(self.addrAddr)
-            return rslt
 
         elif self.addrType == Address.remoteBroadcastAddr:
             rslt = '%d:*' % (self.addrNet,)
-            if self.addrRoute:
-                rslt += "@" + self.addrRoute[0]
-                if self.addrRoute[1] != 47808:
-                    rslt += ":" + str(self.addrRoute[1])
-            return rslt
 
         elif self.addrType == Address.remoteStationAddr:
             rslt = '%d:' % (self.addrNet,)
@@ -417,22 +411,19 @@ class Address:
                         rslt += ':' + str(port)
                 else:
                     rslt += '0x' + btox(self.addrAddr)
-            if self.addrRoute:
-                rslt += "@" + self.addrRoute[0]
-                if self.addrRoute[1] != 47808:
-                    rslt += ":" + str(self.addrRoute[1])
-            return rslt
 
         elif self.addrType == Address.globalBroadcastAddr:
             rslt = "*:*"
-            if self.addrRoute:
-                rslt += "@" + self.addrRoute[0]
-                if self.addrRoute[1] != 47808:
-                    rslt += ":" + str(self.addrRoute[1])
-            return rslt
 
         else:
             raise TypeError("unknown address type %d" % self.addrType)
+
+        if self.addrRoute:
+            rslt += "@" + self.addrRoute[0]
+            if self.addrRoute[1] != 47808:
+                rslt += ":" + str(self.addrRoute[1])
+
+        return rslt
 
     def __repr__(self):
         return "<%s %s>" % (self.__class__.__name__, self.__str__())
@@ -480,10 +471,10 @@ def unpack_ip_addr(addr):
 
 class LocalStation(Address):
 
-    def __init__(self, addr):
+    def __init__(self, addr, route=None):
         self.addrType = Address.localStationAddr
         self.addrNet = None
-        self.addrRoute = None
+        self.addrRoute = route
 
         if isinstance(addr, int):
             if (addr < 0) or (addr >= 256):
@@ -539,12 +530,12 @@ class RemoteStation(Address):
 
 class LocalBroadcast(Address):
 
-    def __init__(self):
+    def __init__(self, route=None):
         self.addrType = Address.localBroadcastAddr
         self.addrNet = None
         self.addrAddr = None
         self.addrLen = None
-        self.addrRoute = None
+        self.addrRoute = route
 
 #
 #   RemoteBroadcast

@@ -483,14 +483,13 @@ class TestLocalBroadcast(unittest.TestCase, MatchAddressMixin):
     def test_local_broadcast(self):
         if _debug: TestLocalBroadcast._debug("test_local_broadcast")
 
-        # no parameters
-        with self.assertRaises(TypeError):
-            LocalBroadcast(1)
-
         test_addr = LocalBroadcast()
         self.match_address(test_addr, 1, None, None, None)
         assert str(test_addr) == "*"
 
+        test_addr = LocalBroadcast(route=('1.2.3.4', 47808))
+        self.match_address(test_addr, 1, None, None, None)
+        assert str(test_addr) == "*@1.2.3.4"
 
 @bacpypes_debugging
 class TestRemoteBroadcast(unittest.TestCase, MatchAddressMixin):
