@@ -23,8 +23,8 @@ try:
 except:
     pass
 
-from .debugging import ModuleLogger, bacpypes_debugging, btox, xtob
 from .settings import route_aware
+from .debugging import ModuleLogger, bacpypes_debugging, btox, xtob
 
 from .pdu import PDU, Address
 from .bvll import BVLPDU, bvl_pdu_types, ForwardedNPDU, \

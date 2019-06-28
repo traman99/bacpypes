@@ -13,6 +13,7 @@ try:
 except ImportError:
     netifaces = None
 
+from .settings import route_aware
 from .debugging import ModuleLogger, bacpypes_debugging, btox, xtob
 from .comm import PCI as _PCI, PDUData
 
@@ -28,10 +29,10 @@ _log = ModuleLogger(globals())
 #   Address
 #
 
-_field_address = "(\d+)"
-_ip_address_port = "(\d+\.\d+\.\d+\.\d+)(?::(\d+))?"
-_ip_address_mask_port = "(\d+\.\d+\.\d+\.\d+)(?:/(\d+))?(?::(\d+))?"
-_net_ip_address_port = "(\d+):" + _ip_address_port
+_field_address = r"(\d+)"
+_ip_address_port = r"(\d+\.\d+\.\d+\.\d+)(?::(\d+))?"
+_ip_address_mask_port = r"(\d+\.\d+\.\d+\.\d+)(?:/(\d+))?(?::(\d+))?"
+_net_ip_address_port = r"(\d+):" + _ip_address_port
 _at_route = "(?:[@](?:" + _field_address + "|" + _ip_address_port + "))?"
 
 ip_address_port_re = re.compile("^" + _ip_address_port + "$")
@@ -193,6 +194,9 @@ class Address:
 
                     self.addrAddr = addrstr + struct.pack('!H', self.addrPort & _short_mask)
                     self.addrLen = 6
+
+                if (not route_aware) and (route_addr or route_ip_addr):
+                    Address._warning("route provided but not route aware: %r", addr)
 
                 if route_addr:
                     self.addrRoute = Address(int(route_addr))
@@ -431,7 +435,10 @@ class Address:
         return "<%s %s>" % (self.__class__.__name__, self.__str__())
 
     def _tuple(self):
-        return (self.addrType, self.addrNet, self.addrAddr)
+        if (not route_aware) or (self.addrRoute is None):
+            return (self.addrType, self.addrNet, self.addrAddr, None)
+        else:
+            return (self.addrType, self.addrNet, self.addrAddr, self.addrRoute._tuple())
 
     def __hash__(self):
         return hash(self._tuple())
@@ -441,14 +448,14 @@ class Address:
         if not isinstance(arg, Address):
             arg = Address(arg)
 
-        # all of the components must match
-        rslt = self._tuple() == arg._tuple()
-        if not rslt:
-            return False
+        # basic components must match
+        rslt = (self.addrType == arg.addrType)
+        rslt = rslt and (self.addrNet == arg.addrNet)
+        rslt = rslt and (self.addrAddr == arg.addrAddr)
 
-        # if both are route aware, routes must match
-        if self.addrRoute and arg.addrRoute:
-            rslt = (self.addrRoute and arg.addrRoute)
+        # if both have routes they must match
+        if rslt and self.addrRoute and arg.addrRoute:
+            rslt = rslt and (self.addrRoute == arg.addrRoute)
 
         return rslt
 

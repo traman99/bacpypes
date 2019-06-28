@@ -6,8 +6,8 @@ Network Service
 
 from copy import deepcopy as _deepcopy
 
-from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
 from .settings import route_aware
+from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
 from .errors import ConfigurationError
 
 from .comm import Client, Server, bind, \

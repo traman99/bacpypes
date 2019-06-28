@@ -45,8 +45,8 @@ class Address:
         if _debug: Address._debug("__init__ %r", args)
         self.addrType = Address.nullAddr
         self.addrNet = None
-        self.addrLen = 0
-        self.addrAddr = b''
+        self.addrLen = None
+        self.addrAddr = None
 
         if len(args) == 1:
             self.decode_address(args[0])

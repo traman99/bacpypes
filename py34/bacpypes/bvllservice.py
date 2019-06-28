@@ -8,8 +8,8 @@ import sys
 import struct
 from time import time as _time
 
-from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
 from .settings import route_aware
+from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
 
 from .udp import UDPDirector
 from .task import OneShotTask, RecurringTask
