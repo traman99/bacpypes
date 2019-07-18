@@ -441,7 +441,6 @@ class TestRemoteStation(unittest.TestCase, MatchAddressMixin):
         self.match_address(test_addr, 4, 1, 6, '01020304bac0')
         assert str(test_addr) == "1:1.2.3.4"
 
-
     def test_remote_station_ints_routed(self):
         if _debug: TestRemoteStation._debug("test_remote_station_ints_routed")
 

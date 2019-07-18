@@ -29,12 +29,13 @@ _log = ModuleLogger(globals())
 #   Address
 #
 
-_field_address = r"(\d+)"
+_field_address = r"((?:\d+)|(?:0x(?:[0-9A-Fa-f][0-9A-Fa-f])+))"
 _ip_address_port = r"(\d+\.\d+\.\d+\.\d+)(?::(\d+))?"
 _ip_address_mask_port = r"(\d+\.\d+\.\d+\.\d+)(?:/(\d+))?(?::(\d+))?"
 _net_ip_address_port = r"(\d+):" + _ip_address_port
 _at_route = "(?:[@](?:" + _field_address + "|" + _ip_address_port + "))?"
 
+field_address_re = re.compile("^" + _field_address + "$")
 ip_address_port_re = re.compile("^" + _ip_address_port + "$")
 ip_address_mask_port_re = re.compile("^" + _ip_address_mask_port + "$")
 net_ip_address_port_re = re.compile("^" + _net_ip_address_port + "$")
@@ -44,10 +45,10 @@ ethernet_re = re.compile(r'^([0-9A-Fa-f][0-9A-Fa-f][:]){5}([0-9A-Fa-f][0-9A-Fa-f
 interface_re = re.compile(r'^(?:([\w]+))(?::(\d+))?$')
 
 net_broadcast_route_re = re.compile("^([0-9])+:[*]" + _at_route + "$")
-net_station_route_re = re.compile("^([0-9])+:([0-9]+)" + _at_route + "$")
+net_station_route_re = re.compile("^([0-9])+:" + _field_address + _at_route + "$")
 net_ip_address_route_re = re.compile("^([0-9])+:" + _ip_address_port + _at_route + "$")
 
-combined_pattern = re.compile("^(?:(?:([0-9]+)|([*])):)?(?:([*])|([0-9]+)|" + _ip_address_mask_port + ")" + _at_route + "$")
+combined_pattern = re.compile("^(?:(?:([0-9]+)|([*])):)?(?:([*])|" + _field_address + "|" + _ip_address_mask_port + ")" + _at_route + "$")
 
 @bacpypes_debugging
 class Address:
@@ -164,12 +165,16 @@ class Address:
 
                 if local_addr:
                     if _debug: Address._debug("    - simple address")
-                    local_addr = int(local_addr)
-                    if local_addr >= 256:
-                        raise ValueError("address out of range")
+                    if local_addr.startswith("0x"):
+                        self.addrAddr = xtob(local_addr[2:])
+                        self.addrLen = len(self.addrAddr)
+                    else:
+                        local_addr = int(local_addr)
+                        if local_addr >= 256:
+                            raise ValueError("address out of range")
 
-                    self.addrAddr = struct.pack('B', local_addr)
-                    self.addrLen = 1
+                        self.addrAddr = struct.pack('B', local_addr)
+                        self.addrLen = 1
 
                 if local_ip_addr:
                     if _debug: Address._debug("    - ip address")
