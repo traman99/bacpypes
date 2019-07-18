@@ -87,11 +87,11 @@ class TestOctetString(unittest.TestCase):
 
         obj = OctetString(xtob('01'))
         assert obj.value == xtob('01')
-        assert str(obj) == "OctetString(X'01')"
+        assert str(obj) == "X'01'"
 
         obj = OctetString(xtob('01020304'))
         assert obj.value == xtob('01020304')
-        assert str(obj) == "OctetString(X'01020304')"
+        assert str(obj) == "X'01020304'"
 
     def test_octet_string_tag(self):
         if _debug: TestOctetString._debug("test_octet_string_tag")

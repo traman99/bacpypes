@@ -87,11 +87,11 @@ class TestBoolean(unittest.TestCase):
 
         obj = Boolean(False)
         assert obj.value == False
-        assert str(obj) == "Boolean(False)"
+        assert str(obj) == "False"
 
         obj = Boolean(True)
         assert obj.value == True
-        assert str(obj) == "Boolean(True)"
+        assert str(obj) == "True"
 
     def test_boolean_tag(self):
         if _debug: TestBoolean._debug("test_boolean_tag")

@@ -99,12 +99,12 @@ class TestObjectType(unittest.TestCase):
         # known values are translated into strings
         obj = ObjectType(0)
         assert obj.value == 'analogInput'
-        assert str(obj) == "ObjectType(analogInput)"
+        assert str(obj) == "analogInput"
 
         # unknown values are kept as integers
         obj = ObjectType(127)
         assert obj.value == 127
-        assert str(obj) == "ObjectType(127)"
+        assert str(obj) == "127"
 
     def test_object_type_str(self):
         if _debug: TestObjectType._debug("test_object_type_str")
@@ -126,12 +126,12 @@ class TestObjectType(unittest.TestCase):
         # known values are translated into strings
         obj = MyObjectType(0)
         assert obj.value == 'analogInput'
-        assert str(obj) == "MyObjectType(analogInput)"
+        assert str(obj) == "analogInput"
 
         # unknown values are kept as integers
         obj = MyObjectType(128)
         assert obj.value == 'myAnalogInput'
-        assert str(obj) == "MyObjectType(myAnalogInput)"
+        assert str(obj) == "myAnalogInput"
 
     def test_extended_object_type_str(self):
         if _debug: TestObjectType._debug("test_extended_object_type_str")

@@ -94,11 +94,11 @@ class TestDouble(unittest.TestCase):
 
         obj = Double(1.0)
         assert obj.value == 1.0
-        assert str(obj) == "Double(1)"
+        assert str(obj) == "1.0"
 
         obj = Double(73.5)
         assert obj.value == 73.5
-        assert str(obj) == "Double(73.5)"
+        assert str(obj) == "73.5"
 
     def test_double_tag(self):
         if _debug: TestDouble._debug("test_double_tag")

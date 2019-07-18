@@ -95,11 +95,11 @@ class TestReal(unittest.TestCase):
 
         obj = Real(1.0)
         assert obj.value == 1.0
-        assert str(obj) == "Real(1)"
+        assert str(obj) == "1.0"
 
         obj = Real(73.5)
         assert obj.value == 73.5
-        assert str(obj) == "Real(73.5)"
+        assert str(obj) == "73.5"
 
     def test_real_tag(self):
         if _debug: TestReal._debug("test_real_tag")

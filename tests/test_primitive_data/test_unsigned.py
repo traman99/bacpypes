@@ -99,7 +99,7 @@ class TestUnsigned(unittest.TestCase):
 
         obj = Unsigned(1)
         assert obj.value == 1
-        assert str(obj) == "Unsigned(1)"
+        assert str(obj) == "1"
 
         with self.assertRaises(ValueError):
             Unsigned(-1)

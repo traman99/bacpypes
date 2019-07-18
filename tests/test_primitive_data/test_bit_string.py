@@ -89,15 +89,15 @@ class TestBitString(unittest.TestCase):
 
         obj = BitString()
         assert obj.value == []
-        assert str(obj) == "BitString()"
+        assert str(obj) == ""
 
         obj = BitString([0])
         assert obj.value == [0]
-        assert str(obj) == "BitString(0)"
+        assert str(obj) == "0"
 
         obj = BitString([0, 1])
         assert obj.value == [0, 1]
-        assert str(obj) == "BitString(0,1)"
+        assert str(obj) == "0,1"
 
         with self.assertRaises(TypeError):
             BitString("some string")
@@ -111,10 +111,10 @@ class TestBitString(unittest.TestCase):
         assert obj.value == [0] * SampleBitString.bitLen
 
         obj = SampleBitString([1])
-        assert str(obj) == "BitString(b0)"
+        assert str(obj) == "b0"
 
         obj = SampleBitString(['b4'])
-        assert str(obj) == "BitString(!b0,!b1,0,0,b4,0,0,!b7,!b8,0,0,0,!b12)"
+        assert str(obj) == "!b0,!b1,0,0,b4,0,0,!b7,!b8,0,0,0,!b12"
 
         with self.assertRaises(TypeError):
             SampleBitString(["x1"])

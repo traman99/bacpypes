@@ -98,11 +98,11 @@ class TestInteger(unittest.TestCase):
 
         obj = Integer(1)
         assert obj.value == 1
-        assert str(obj) == "Integer(1)"
+        assert str(obj) == "1"
 
         obj = Integer(-1)
         assert obj.value == -1
-        assert str(obj) == "Integer(-1)"
+        assert str(obj) == "-1"
 
     def test_integer_tag(self):
         if _debug: TestInteger._debug("test_integer_tag")

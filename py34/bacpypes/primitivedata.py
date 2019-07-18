@@ -503,6 +503,12 @@ class Atomic(object):
         """Return True if arg is valid value for the class."""
         raise NotImplementedError("call on a derived class of Atomic")
 
+    def __repr__(self):
+        """Return the normal repr() string with the str() spliced in."""
+        s = super().__repr__()
+        t = s.index(" ")
+        return s[:t] + "(" + str(self) + ")" + s[t:]
+
 #
 #   Null
 #
@@ -589,7 +595,7 @@ class Boolean(Atomic):
         return isinstance(arg, bool)
 
     def __str__(self):
-        return "Boolean(%s)" % (str(self.value), )
+        return str(self.value)
 
 #
 #   Unsigned
@@ -656,7 +662,7 @@ class Unsigned(Atomic):
         return True
 
     def __str__(self):
-        return "%s(%s)" % (self.__class__.__name__, self.value)
+        return str(self.value)
 
 class Unsigned8(Unsigned):
     _low_limit = 0
@@ -737,7 +743,7 @@ class Integer(Atomic):
         return isinstance(arg, int) and (not isinstance(arg, bool))
 
     def __str__(self):
-        return "Integer(%s)" % (self.value, )
+        return str(self.value)
 
 #
 #   Real
@@ -782,7 +788,7 @@ class Real(Atomic):
         return isinstance(arg, float)
 
     def __str__(self):
-        return "Real(%g)" % (self.value,)
+        return str(self.value)
 
 #
 #   Double
@@ -827,7 +833,7 @@ class Double(Atomic):
         return isinstance(arg, float)
 
     def __str__(self):
-        return "Double(%g)" % (self.value,)
+        return str(self.value)
 
 #
 #   OctetString
@@ -867,7 +873,7 @@ class OctetString(Atomic):
         return isinstance(arg, (bytes, bytearray))
 
     def __str__(self):
-        return "OctetString(X'" + btox(self.value) + "')"
+        return "X'" + btox(self.value) + "'"
 
 #
 #   CharacterString
@@ -939,7 +945,7 @@ class CharacterString(Atomic):
         return isinstance(arg, str)
 
     def __str__(self):
-        return "CharacterString(%d,X'%s')" % (self.strEncoding, btox(self.strValue))
+        return "%d,X'%s'" % (self.strEncoding, btox(self.strValue))
 
 #
 #   BitString
@@ -974,7 +980,7 @@ class BitString(Atomic):
                     self.value[bit] = 1
             else:
                 raise TypeError("invalid constructor list element(s)")
-        elif isinstance(arg,BitString):
+        elif isinstance(arg, BitString):
             self.value = arg.value[:]
         else:
             raise TypeError("invalid constructor datatype")
@@ -1055,7 +1061,7 @@ class BitString(Atomic):
                 valueList.append(str(value))
 
         # bundle it together
-        return "BitString(" + ','.join(valueList) + ")"
+        return ','.join(valueList)
 
     def __getitem__(self, bit):
         if isinstance(bit, int):
@@ -1218,7 +1224,7 @@ class Enumerated(Atomic):
             isinstance(arg, str)
 
     def __str__(self):
-        return "%s(%s)" % (self.__class__.__name__, self.value)
+        return str(self.value)
 
 #
 #   expand_enumerations
@@ -1455,6 +1461,15 @@ class Date(Atomic):
         """Return True if arg is valid value for the class."""
         return isinstance(arg, tuple) and (len(arg) == 4)
 
+    def is_special(self):
+        """Return True is the date has any special values."""
+
+        # rip it apart
+        year, month, day, day_of_week = self.value
+
+        return (year == 255) or (month in _special_mon_inv) or \
+            (day in _special_day_inv) or (day_of_week == 255)
+
     def __str__(self):
         """String representation of the date."""
         # rip it apart
@@ -1469,7 +1484,7 @@ class Date(Atomic):
         day = _special_day_inv.get(day, str(day))
         day_of_week = _special_dow_inv.get(day_of_week, str(day_of_week))
 
-        return "%s(%s-%s-%s %s)" % (self.__class__.__name__, year, month, day, day_of_week)
+        return "%s-%s-%s %s" % (year, month, day, day_of_week)
 
 
 #
@@ -1568,15 +1583,18 @@ class Time(Atomic):
         """Return True if arg is valid value for the class."""
         return isinstance(arg, tuple) and (len(arg) == 4)
 
+    def is_special(self):
+        """Return True is the date has any special values."""
+        return 255 in self.value
+
     def __str__(self):
         # rip it apart
         hour, minute, second, hundredth = self.value
 
-        rslt = "Time("
         if hour == 255:
-            rslt += "*:"
+            rslt = "*:"
         else:
-            rslt += "%02d:" % (hour,)
+            rslt = "%02d:" % (hour,)
         if minute == 255:
             rslt += "*:"
         else:
@@ -1586,9 +1604,9 @@ class Time(Atomic):
         else:
             rslt += "%02d." % (second,)
         if hundredth == 255:
-            rslt += "*)"
+            rslt += "*"
         else:
-            rslt += "%02d)" % (hundredth,)
+            rslt += "%02d" % (hundredth,)
 
         return rslt
 
@@ -1785,7 +1803,7 @@ class ObjectIdentifier(Atomic):
             typestr = "Reserved %d" % (objType,)
         else:
             typestr = "Vendor %d" % (objType,)
-        return "ObjectIdentifier(%s,%d)" % (typestr, objInstance)
+        return "%s:%d" % (typestr, objInstance)
 
     def __hash__(self):
         return hash(self.value)

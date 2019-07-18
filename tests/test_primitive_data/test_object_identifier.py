@@ -86,22 +86,22 @@ class TestObjectIdentifier(unittest.TestCase):
 
         obj = ObjectIdentifier(1)
         assert obj.value == ('analogInput', 1)
-        assert str(obj) == "ObjectIdentifier(analogInput,1)"
+        assert str(obj) == "analogInput:1"
 
         obj = ObjectIdentifier(0x0400002)
         assert obj.value == ('analogOutput', 2)
-        assert str(obj) == "ObjectIdentifier(analogOutput,2)"
+        assert str(obj) == "analogOutput:2"
 
     def test_object_identifier_str(self):
         if _debug: TestObjectIdentifier._debug("test_object_identifier_str")
 
         obj = ObjectIdentifier("analogInput:1")
         assert obj.value == ('analogInput', 1)
-        assert str(obj) == "ObjectIdentifier(analogInput,1)"
+        assert str(obj) == "analogInput:1"
 
         obj = ObjectIdentifier("8:123")
         assert obj.value == ('device', 123)
-        assert str(obj) == "ObjectIdentifier(device,123)"
+        assert str(obj) == "device:123"
 
         with self.assertRaises(ValueError):
             ObjectIdentifier("x")

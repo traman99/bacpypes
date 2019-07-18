@@ -87,7 +87,7 @@ class TestTime(unittest.TestCase):
 
         obj = Time((1,2,3,4))
         assert obj.value == (1, 2, 3, 4)
-        assert str(obj) == "Time(01:02:03.04)"
+        assert str(obj) == "01:02:03.04"
 
         assert Time("1:2").value == (1, 2, 0, 0)
         assert Time("1:2:3").value == (1, 2, 3, 0)

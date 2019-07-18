@@ -87,7 +87,7 @@ class TestDate(unittest.TestCase):
 
         obj = Date((1,2,3,4))
         assert obj.value == (1,2,3,4)
-        assert str(obj) == "Date(1901-2-3 thu)"
+        assert str(obj) == "1901-2-3 thu"
 
     def test_date_tag(self):
         if _debug: TestDate._debug("test_date_tag")

@@ -96,7 +96,7 @@ class TestEnumerated(unittest.TestCase):
 
         obj = Enumerated(1)
         assert obj.value == 1
-        assert str(obj) == "Enumerated(1)"
+        assert str(obj) == "1"
 
         with self.assertRaises(ValueError):
             Enumerated(-1)
@@ -106,7 +106,7 @@ class TestEnumerated(unittest.TestCase):
 
         obj = QuickBrownFox('quick')
         assert obj.value == 'quick'
-        assert str(obj) == "QuickBrownFox(quick)"
+        assert str(obj) == "quick"
 
         with self.assertRaises(ValueError):
             QuickBrownFox(-1)
@@ -122,7 +122,7 @@ class TestEnumerated(unittest.TestCase):
 
         obj = QuickBrownFox(u'quick')
         assert obj.value == u'quick'
-        assert str(obj) == "QuickBrownFox(quick)"
+        assert str(obj) == "quick"
 
         with self.assertRaises(ValueError):
             QuickBrownFox(-1)
