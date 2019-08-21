@@ -10,7 +10,7 @@ import logging
 import logging.handlers
 import argparse
 
-from .settings import ini_file, debug, color, max_bytes, backup_count
+from .settings import ini_file, debug, color, debug_file, max_bytes, backup_count
 from .debugging import bacpypes_debugging, LoggingFormatter, ModuleLogger
 
 from configparser import ConfigParser as _ConfigParser
@@ -103,7 +103,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def parse_args(self, *args, **kwargs):
         """Parse the arguments as usual, then add default processing."""
-        global debug, color, max_bytes, backup_count
+        global debug, color, debug_file, max_bytes, backup_count
         if _debug: ArgumentParser._debug("parse_args")
 
         # pass along to the parent class
@@ -138,23 +138,27 @@ class ArgumentParser(argparse.ArgumentParser):
             color = (i % 6) + 2 if result_args.color else None
 
             debug_specs = debug_name.split(':')
-            if len(debug_specs) == 1:
+            if (len(debug_specs) == 1) and (not debug_file):
                 ConsoleLogHandler(debug_name, color=color)
             else:
                 # the debugger name is just the first component
-                debug_name = debug_specs[0]
+                debug_name = debug_specs.pop(0)
+
+                if debug_specs:
+                    file_name = debug_specs.pop(0)
+                else:
+                    file_name = debug_file
 
                 # if the file is already being used, use the already created handler
-                file_name = debug_specs[1]
                 if file_name in file_handlers:
                     handler = file_handlers[file_name]
                 else:
-                    if len(debug_specs) >= 3:
-                        maxBytes = int(debug_specs[2])
+                    if debug_specs:
+                        maxBytes = int(debug_specs.pop(0))
                     else:
                         maxBytes = max_bytes
-                    if len(debug_specs) >= 4:
-                        backupCount = int(debug_specs[3])
+                    if debug_specs:
+                        backupCount = int(debug_specs.pop(0))
                     else:
                         backupCount = backup_count
 
