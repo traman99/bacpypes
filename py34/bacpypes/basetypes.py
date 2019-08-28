@@ -2290,6 +2290,12 @@ class LogRecord(Sequence):
         , Element('statusFlags', StatusFlags, 2, True)
         ]
 
+class NameValue(Sequence):
+    sequenceElements = \
+        [ Element('name', CharacterString, 0)
+        , Element('value', AnyAtomic, optional=True)
+        ]
+
 class NetworkSecurityPolicy(Sequence):
     sequenceElements = \
         [ Element('portId', Unsigned, 0)

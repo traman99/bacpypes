@@ -32,7 +32,7 @@ from .basetypes import AccessCredentialDisable, AccessCredentialDisableReason, \
     FileAccessMethod, FDTEntry, IPMode, HostNPort, LifeSafetyMode, LifeSafetyOperation, LifeSafetyState, \
     LightingCommand, LightingInProgress, LightingTransition, LimitEnable, \
     LockStatus, LogMultipleRecord, LogRecord, LogStatus, LoggingType, \
-    Maintenance, NetworkNumberQuality, NetworkPortCommand, \
+    Maintenance, NameValue, NetworkNumberQuality, NetworkPortCommand, \
     NetworkSecurityPolicy, NetworkType, NodeType, NotifyType, \
     ObjectPropertyReference, ObjectTypesSupported, OptionalCharacterString, \
     Polarity, PortPermission, Prescale, PriorityArray, ProcessIdSelection, \
@@ -42,7 +42,6 @@ from .basetypes import AccessCredentialDisable, AccessCredentialDisableReason, \
     ServicesSupported, SetpointReference, ShedLevel, ShedState, SilencedState, \
     SpecialEvent, StatusFlags, TimeStamp, VTClass, VTSession, VMACEntry, \
     WriteStatus
-from .tags import NameValue, ArrayOfNameValue, SequenceOfNameValue
 from .apdu import EventNotificationParameters, ReadAccessSpecification, \
     ReadAccessResult
 
@@ -470,7 +469,7 @@ class Object:
         , OptionalProperty('description', CharacterString)
         , OptionalProperty('profileName', CharacterString)
         , ReadableProperty('propertyList', ArrayOf(PropertyIdentifier))
-        , OptionalProperty('tags', ArrayOfNameValue)
+        , OptionalProperty('tags', ArrayOf(NameValue))
         , OptionalProperty('profileLocation', CharacterString)
         , OptionalProperty('profileName', CharacterString)
         ]
