@@ -160,11 +160,13 @@ class IRI:
     _p = re.compile(_e)
     _default_ports = (("http", ":80"), ("https", ":443"))
 
-    def __init__(self, url=None):
-        if not url:
+    def __init__(self, iri=None):
+        self.iri = iri
+
+        if not iri:
             g = (None, None, None, None, None)
         else:
-            m = IRI._p.match(url)
+            m = IRI._p.match(iri)
             if not m:
                 raise ValueError("not an IRI")
 
