@@ -10,6 +10,9 @@ import base64
 from rdflib import Graph, Literal, BNode, URIRef
 from rdflib.namespace import Namespace, RDF, XSD
 
+from bacpypes.debugging import bacpypes_debugging, ModuleLogger
+from bacpypes.consolelogging import ArgumentParser
+
 from bacpypes.primitivedata import (
     Null,
     Boolean,
@@ -25,8 +28,14 @@ from bacpypes.primitivedata import (
     Time,
     ObjectIdentifier,
 )
-from bacpypes.basetypes import EngineeringUnits, DateTime
+from bacpypes.basetypes import EngineeringUnits, EventTransitionBits, DateTime
 from bacpypes.local.object import IRI, ArrayOfNameValue
+
+# some debugging
+_debug = 0
+_log = ModuleLogger(globals())
+
+BACnetNS = Namespace("http://data.ashrae.org/bacnet/2016#")
 
 # enumeration names are analog-value rather that analogValue
 _wordsplit_re = re.compile(r"([a-z0-9])([A-Z])(?=.)")
@@ -37,8 +46,6 @@ def _wordsplit(k):
 #
 #
 #
-
-BACnetNS = Namespace("http://data.ashrae.org/bacnet/2016#")
 
 def boolean_to_literal(value):
     return Literal(value.value, datatype=XSD.boolean)
@@ -68,10 +75,22 @@ def octetstring_to_literal(value):
 def characterstring_to_literal(value):
     return Literal(value.value)
 
-
+@bacpypes_debugging
 def bitstring_to_literal(value):
-    bit_string = "".join(str(bit) for bit in value.value)
-    return Literal(bit_string, datatype=BACnetNS.BitString)
+    if _debug: bitstring_to_literal._debug("bitstring_to_literal %r", value)
+
+    # flip the bit names
+    bit_names = {}
+    for name, bit in value.bitNames.items():
+        bit_names[bit] = _wordsplit(name)
+    if _debug: bitstring_to_literal._debug("    - bit_names: %r", bit_names)
+
+    # build a list of values and/or names
+    value_names = [bit_names.get(bit_number, str(bit_number)) for bit_number, bit in enumerate(value.value) if bit]
+    if _debug: bitstring_to_literal._debug("    - value_names: %r", value_names)
+
+    # bundle it together
+    return Literal(';'.join(value_names))
 
 
 def enumerated_to_literal(value):
@@ -152,7 +171,10 @@ def elements_to_dict(element_list):
     return {k: v for k, v in element_list}
 
 
+@bacpypes_debugging
 def term_to_node(term, prefixes):
+    if _debug: term_to_node._debug("term_to_node %r %r", term, prefixes)
+
     uriref = IRI(term)
     if uriref.is_prefix():
         raise ValueError("local name, prefixed name, or IRI required")
@@ -168,12 +190,22 @@ def term_to_node(term, prefixes):
             node = URIRef(prefixes[prefix] + suffix)
         else:
             node = URIRef(term)
+    if _debug: term_to_node._debug("    - node: %r", node)
 
     return node
 
 
+@bacpypes_debugging
 def elements_to_graph(element_list):
+    if _debug: elements_to_graph._debug("elements_to_graph %r", element_list)
+
     objid = base = vocab = language = None
+
+    # start with an empty graph
+    graph = Graph()
+
+    # register the BACnet namespace
+    graph.bind("BACnet", BACnetNS),
 
     # build a dictionary of the stuff for easier reference
     tag_set = {k: v for k, v in element_list}
@@ -182,6 +214,7 @@ def elements_to_graph(element_list):
     language = tag_set.pop("@language", None)
     if language:
         language = language.value
+    if _debug: elements_to_graph._debug("    - language: %r", language)
 
     # pull out the base or use the default
     base = tag_set.pop("@base", None)
@@ -189,7 +222,7 @@ def elements_to_graph(element_list):
         base_iri = IRI(base.value)
     else:
         base_iri = IRI(str(BACnetNS))
-    print("base: {}".format(base))
+    if _debug: elements_to_graph._debug("    - base_iri: %r", base_iri)
 
     # pull out the vocabulary and resolve against the base
     vocab = tag_set.pop("@vocab", None)
@@ -197,6 +230,8 @@ def elements_to_graph(element_list):
         vocab_iri = base_iri.resolve(vocab.value)
     else:
         vocab_iri = base_iri
+    if _debug: elements_to_graph._debug("    - vocab_iri: %r", vocab_iri)
+
     prefixes = {None: str(vocab_iri)}
 
     # look for namespace prefix definitions and resolve with vocabulary
@@ -204,9 +239,16 @@ def elements_to_graph(element_list):
         if term.endswith(":"):
             prefix_name = term[:-1]
             prefix_value = tag_set[term].value
-            prefixes[prefix_name] = str(vocab_iri.resolve(prefix_value))
+            prefix_iri = vocab_iri.resolve(prefix_value)
+            prefix_str = str(prefix_iri)
 
-    print("prefixes: {!r}".format(prefixes))
+            # tuck this away for term_to_node
+            prefixes[prefix_name] = prefix_str
+
+            # add it to the namespace manager for the graph
+            graph.bind(prefix_name, Namespace(prefix_str))
+
+    if _debug: elements_to_graph._debug("    - prefixes: %r", prefixes)
 
     # pull out the id or default to a blank node
     objid = tag_set.pop("@id", None)
@@ -214,13 +256,12 @@ def elements_to_graph(element_list):
         subject_ = term_to_node(objid.value, prefixes)
     else:
         subject_ = BNode()
+    if _debug: elements_to_graph._debug("    - subject_: %r", subject_)
 
-    graph = Graph()
     for term, value in tag_set.items():
         if term[0] == "@" or term.endswith(":"):
             continue
-        print("term: {!r}".format(term))
-        print("value: {!r}".format(value))
+        if _debug: elements_to_graph._debug("    - term, value: %r, %r", term, value)
 
         predicate_ = term_to_node(term, prefixes)
         if isinstance(value, Null):
@@ -245,70 +286,114 @@ def elements_to_graph(element_list):
             object_ = atomic_to_literal_map[value_type](value)
 
         statement_ = (subject_, predicate_, object_)
-        print("s, p, o: {!r}".format(statement_))
-        print("")
+        if _debug: elements_to_graph._debug("    - statement_: %r", statement_)
 
         graph.add(statement_)
 
     return graph
 
 
+#
+#   __main__
+#
+
 test_elements = [
-    ('@base', CharacterString("http://cornell.edu/snork")),
-    ('@vocab', CharacterString("./arf#")),
+    # ('@base', CharacterString("http://cornell.edu/snork")),
+    # ('@vocab', CharacterString("./arf#")),
     ('@id', CharacterString('_:3.1')),
     ('temp', Null()),
-    #   (':', CharacterString("http://demo.org/")),
-    #   (':sensor', Null()),
-    #   ('statusEnable', Boolean(False)),
-    #   ('p:', CharacterString("../bx#")),
-    #   ('p:statusLimit', Unsigned(10)),
-    #   ('elem', Real(12.3)),
-    #   ('elem', Double(45.6)),
-    #   ('elem', OctetString(b'0123')),
-    #   ('//welcome', CharacterString("Hello, world!")),
-    #   ('statusFlags', BitString([0, 1, 0, 1, 1])),
+
+    # shortest prefix
+    (':', CharacterString("http://demo.org/")),
+    (':sensor', Null()),
+
+    # ('statusEnable', Boolean(False)),
+    # ('statusLimit', Unsigned(10)),
+    # ('lowerBound', Real(12.3)),
+    # ('upperBound', Double(45.6)),
+    # ('packedInfo', OctetString(b'0123')),
+    # ('welcomeMessage', CharacterString("Hello, world!")),
+
+    ('event-enable', EventTransitionBits([1, 0, 1])),
+
     #   ('units', Enumerated(63)),  # degreesKelvin
     ('units', EngineeringUnits(63)),
-    #   ('startDate', Date().now()),
-    #   ('startTime', Time().now()),
-    #   ("spid", ObjectIdentifier("analogValue:3")),
-    ("spref", CharacterString("<_:zook>")),
-    ("spx", CharacterString("<_:zook>")),
-    #   ('dateTime', DateTime(date=Date().now(), time=Time().now())),
+
+    # BACnet prefix
+    # ('BACnet:', CharacterString("http://data.ashrae.org/bacnet/2016#")),
+    # ('BACnet:units', CharacterString("<BACnet:degrees-kelvin>")),
+
+    # ('startDate', Date().now()),
+    # ('startTime', Time().now()),
+
+    # ("spid", ObjectIdentifier("analogValue:3")),
+    # ("spref", CharacterString("<_:zook>")),
+    # ("spx", CharacterString("<_:zook>")),
+
+    # ('dateTime', DateTime(date=Date().now(), time=Time().now())),
 ]
 
-graph = elements_to_graph(test_elements)
+def main():
+    # parse the command line arguments
+    parser = ArgumentParser(description=__doc__)
 
+    # different output formats
+    parser.add_argument("--rdf-xml",
+        action="store_true",
+        default=False,
+        help="RDF/XML",
+        )
+    parser.add_argument("--turtle",
+        action="store_true",
+        default=False,
+        help="Turtle output",
+        )
+    parser.add_argument("--ntriples",
+        action="store_true",
+        default=False,
+        help="N-Triples output",
+        )
+    parser.add_argument("--json-ld",
+        action="store_true",
+        default=False,
+        help="JSON-LD output",
+        )
+    parser.add_argument("--json-ld-context",
+        action="store_true",
+        default=False,
+        help="JSON-LD with a context",
+        )
 
-# Serialize as XML
-if 0:
-    print("--- start: rdf-xml ---")
-    print(graph.serialize(format="pretty-xml").decode("utf-8"))
-    print("--- end: rdf-xml ---\n")
+    # parse the command line arguments
+    args = parser.parse_args()
 
-# Serialize as Turtle
-if 1:
-    print("--- start: turtle ---")
-    print(graph.serialize(format="turtle").decode("utf-8"))
-    print("--- end: turtle ---\n")
+    if _debug: _log.debug("initialization")
+    if _debug: _log.debug("    - args: %r", args)
 
-# Serialize as NTriples
-if 1:
-    print("--- start: ntriples ---")
-    print(graph.serialize(format="nt").decode("utf-8"))
-    print("--- end: ntriples ---\n")
+    graph = elements_to_graph(test_elements)
 
-# Serialize as JSON-LD
-if 0:
-    print("--- start: json-ld ---")
-    print(graph.serialize(format="json-ld").decode("utf-8"))
-    print("--- end: json-ld ---\n")
+    # Serialize as XML
+    if args.rdf_xml:
+        print(graph.serialize(format="pretty-xml").decode("utf-8"))
 
-# Serialize as JSON-LD with context
-if 0:
-    print("--- start: json-ld with context ---")
-    context = {"@language": "en", "@base": BACnetNS, "@vocab": ""}
-    result = graph.serialize(format="json-ld", context=context)
-    print(result.decode("utf-8"))
-    print("--- end: json-ld ---\n")
+    # Serialize as Turtle
+    if args.turtle:
+        print(graph.serialize(format="turtle").decode("utf-8"))
+
+    # Serialize as NTriples
+    if args.ntriples:
+        print(graph.serialize(format="nt").decode("utf-8"))
+
+    # Serialize as JSON-LD
+    if args.json_ld:
+        print(graph.serialize(format="json-ld").decode("utf-8"))
+
+    # Serialize as JSON-LD with context
+    if args.json_ld_context:
+        context = {"@language": "en", "@base": BACnetNS} #, "@vocab": ""}
+        result = graph.serialize(format="json-ld", context=context)
+        print(result.decode("utf-8"))
+
+if __name__ == "__main__":
+    main()
+

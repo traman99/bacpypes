@@ -18,7 +18,6 @@ _log = ModuleLogger(globals())
 
 # handy reference
 ArrayOfPropertyIdentifier = ArrayOf(PropertyIdentifier)
-language_tag_re = re.compile(u"^[A-Za-z0-9-]+$", re.UNICODE)
 
 #
 #   CurrentPropertyList
@@ -152,6 +151,71 @@ class NameValue(_NameValue):
                 taglist.Pop()
                 self.value = tag.app_to_object()
 
+
+#
+#   Turtle Reference Patterns
+#
+
+# character reference patterns
+HEX = u"[0-9A-Fa-f]"
+PERCENT = u"%" + HEX + HEX
+UCHAR = u"[\\\]u" + HEX * 4 + "|" + u"[\\\]U" + HEX * 8
+
+# character sets
+PN_CHARS_BASE = (
+    u"A-Za-z"
+    u"\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF"
+    u"\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF"
+    u"\uFDF0-\uFFFD\U00010000-\U000EFFFF"
+)
+
+PN_CHARS_U = PN_CHARS_BASE + u"_"
+PN_CHARS = u"-" + PN_CHARS_U + u"0-9\u00B7\u0300-\u036F\u203F-\u2040"
+
+# patterns
+IRIREF = u'[<]([^\u0000-\u0020<>"{}|^`\\\]|' + UCHAR + u")*[>]"
+PN_PREFIX = u"[" + PN_CHARS_BASE + u"](([." + PN_CHARS + u"])*[" + PN_CHARS + u"])?"
+
+PN_LOCAL_ESC = u"[-\\_~.!$&'()*+,;=/?#@%]"
+PLX = u"(" + PERCENT + u"|" + PN_LOCAL_ESC + u")"
+
+# non-prefixed names
+PN_LOCAL = (
+    u"(["
+    + PN_CHARS_U
+    + u":0-9]|"
+    + PLX
+    + u")((["
+    + PN_CHARS
+    + u".:]|"
+    + PLX
+    + u")*(["
+    + PN_CHARS
+    + u":]|"
+    + PLX
+    + u"))?"
+)
+
+# namespace prefix declaration
+PNAME_NS = u"(" + PN_PREFIX + u")?:"
+
+# prefixed names
+PNAME_LN = PNAME_NS + PN_LOCAL
+
+# blank nodes
+BLANK_NODE_LABEL = (
+    u"_:[" + PN_CHARS_U + u"0-9]([" + PN_CHARS + u".]*[" + PN_CHARS + u"])?"
+)
+
+# see https://www.w3.org/TR/turtle/#sec-parsing-terms
+iriref_re = re.compile(u"^" + IRIREF + u"$", re.UNICODE)
+local_name_re = re.compile(u"^" + PN_LOCAL + u"$", re.UNICODE)
+namespace_prefix_re = re.compile(u"^" + PNAME_NS + u"$", re.UNICODE)
+prefixed_name_re = re.compile(u"^" + PNAME_LN + u"$", re.UNICODE)
+blank_node_re = re.compile(u"^" + BLANK_NODE_LABEL + u"$", re.UNICODE)
+
+# see https://tools.ietf.org/html/bcp47#section-2.1 for better syntax
+language_tag_re = re.compile(u"^[A-Za-z0-9-]+$", re.UNICODE)
 
 @bacpypes_debugging
 class IRI:
@@ -341,6 +405,8 @@ class TagSet:
             else:
                 raise KeyError(name)
 
+        # skip int values, it is the zeroth element of an array but does
+        # not exist for a list
         for i, v in enumerate(self.value):
             if isinstance(v, int):
                 continue
