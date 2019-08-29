@@ -23,18 +23,16 @@ from bacpypes.primitivedata import (
     Enumerated,
     Date,
     Time,
-    ObjectType,
     ObjectIdentifier,
 )
-from bacpypes.basetypes import DateTime
+from bacpypes.basetypes import EngineeringUnits, DateTime
 from bacpypes.local.object import IRI, ArrayOfNameValue
 
-# object type names are analog-value rather that analogValue
-_wordsplit_re = re.compile(r"([a-z0-9])([A-Z])")
-_object_type_names = {
-    v: _wordsplit_re.sub(lambda m: m.groups()[0] + "-" + m.groups()[1].lower(), k)
-    for k, v in ObjectType.enumerations.items()
-}
+# enumeration names are analog-value rather that analogValue
+_wordsplit_re = re.compile(r"([a-z0-9])([A-Z])(?=.)")
+
+def _wordsplit(k):
+    return _wordsplit_re.sub(lambda m: m.groups()[0] + "-" + m.groups()[1].lower(), k)
 
 #
 #
@@ -77,7 +75,10 @@ def bitstring_to_literal(value):
 
 
 def enumerated_to_literal(value):
-    return Literal(value)
+    if isinstance(value.value, int):
+        return Literal(str(value.value))
+    else:
+        return Literal(_wordsplit(value.value))
 
 
 def date_to_literal(value):
@@ -100,11 +101,13 @@ def time_to_literal(value):
 
 
 def objectidentifier_to_literal(value):
-    obj_type, obj_instance = value.get_tuple()
-    objectidentifier_string = "{}.{}".format(
-        _object_type_names.get(obj_type, obj_type), obj_instance
-    )
-    return Literal(objectidentifier_string, datatype=BACnetNS.ObjectIdentifier)
+    obj_type, obj_instance = value.value
+    if isinstance(obj_type, int):
+        obj_type_str = str(obj_type)
+    else:
+        obj_type_str = _wordsplit(obj_type)
+    obj_instance_str = str(obj_instance)
+    return Literal(obj_type_str + "." + obj_instance_str)
 
 
 def datetime_to_literal(value):
@@ -149,20 +152,24 @@ def elements_to_dict(element_list):
     return {k: v for k, v in element_list}
 
 
-def resolve_term(term, prefixes):
+def term_to_node(term, prefixes):
     uriref = IRI(term)
     if uriref.is_prefix():
         raise ValueError("local name, prefixed name, or IRI required")
 
     # resolve local and prefixed names
     if uriref.is_local_name():
-        uriref = prefixes[None] + term
+        node = URIRef(prefixes[None] + term)
     elif uriref.is_prefixed_name():
         prefix, suffix = term.split(':', 1)
-        if (prefix in prefixes) and (not suffix.startswith('//')):
-            uriref = prefixes[prefix] + suffix
+        if prefix == "_":
+            node = BNode(suffix)
+        elif (prefix in prefixes) and (not suffix.startswith('//')):
+            node = URIRef(prefixes[prefix] + suffix)
+        else:
+            node = URIRef(term)
 
-    return str(uriref)
+    return node
 
 
 def elements_to_graph(element_list):
@@ -204,7 +211,7 @@ def elements_to_graph(element_list):
     # pull out the id or default to a blank node
     objid = tag_set.pop("@id", None)
     if objid:
-        subject_ = URIRef(resolve_term(objid.value, prefixes))
+        subject_ = term_to_node(objid.value, prefixes)
     else:
         subject_ = BNode()
 
@@ -215,15 +222,27 @@ def elements_to_graph(element_list):
         print("term: {!r}".format(term))
         print("value: {!r}".format(value))
 
-        predicate_ = URIRef(resolve_term(term, prefixes))
+        predicate_ = term_to_node(term, prefixes)
         if isinstance(value, Null):
             object_ = predicate_
             predicate_ = RDF.type
-        elif isinstance(value, CharacterString) and language:
-            object_ = Literal(value.value, lang=language)
+        elif isinstance(value, CharacterString):
+            str_value = value.value
+            if str_value.startswith("<") and str_value.endswith(">"):
+                object_ = term_to_node(str_value[1:-1], prefixes)
+            elif language:
+                object_ = Literal(str_value, lang=language)
+            else:
+                object_ = Literal(str_value)
         else:
-            object_ = atomic_to_literal_map[type(value)](value)
-
+            value_type = type(value)
+            if value_type not in atomic_to_literal_map:
+                for value_type in atomic_to_literal_map:
+                    if isinstance(value, value_type):
+                        break
+                else:
+                    raise TypeError("invalid type: %r" % (value_type,))
+            object_ = atomic_to_literal_map[value_type](value)
 
         statement_ = (subject_, predicate_, object_)
         print("s, p, o: {!r}".format(statement_))
@@ -236,10 +255,11 @@ def elements_to_graph(element_list):
 
 test_elements = [
     ('@base', CharacterString("http://cornell.edu/snork")),
-    ('@vocab', CharacterString("/arf")),
+    ('@vocab', CharacterString("./arf#")),
+    ('@id', CharacterString('_:3.1')),
     ('temp', Null()),
-    (':', CharacterString("http://demo.org/")),
-    (':sensor', Null()),
+    #   (':', CharacterString("http://demo.org/")),
+    #   (':sensor', Null()),
     #   ('statusEnable', Boolean(False)),
     #   ('p:', CharacterString("../bx#")),
     #   ('p:statusLimit', Unsigned(10)),
@@ -249,9 +269,12 @@ test_elements = [
     #   ('//welcome', CharacterString("Hello, world!")),
     #   ('statusFlags', BitString([0, 1, 0, 1, 1])),
     #   ('units', Enumerated(63)),  # degreesKelvin
+    ('units', EngineeringUnits(63)),
     #   ('startDate', Date().now()),
     #   ('startTime', Time().now()),
     #   ("spid", ObjectIdentifier("analogValue:3")),
+    ("spref", CharacterString("<_:zook>")),
+    ("spx", CharacterString("<_:zook>")),
     #   ('dateTime', DateTime(date=Date().now(), time=Time().now())),
 ]
 
