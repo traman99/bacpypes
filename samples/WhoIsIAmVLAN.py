@@ -269,6 +269,11 @@ def main():
         help='network number of VLAN network',
         )
 
+    # add an argument for interval
+    parser.add_argument('addr2', type=str,
+        help='address on the VLAN network',
+        )
+
     # now parse the arguments
     args = parser.parse_args()
 
@@ -280,7 +285,7 @@ def main():
     if _debug: _log.debug("    - local_network, local_address: %r, %r", local_network, local_address)
 
     vlan_network = args.net2
-    vlan_address = Address(2)
+    vlan_address = Address(args.addr2)
     if _debug: _log.debug("    - vlan_network, vlan_address: %r, %r", vlan_network, vlan_address)
 
     # create the VLAN router, bind it to the local network
