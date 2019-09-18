@@ -132,6 +132,8 @@ class Snapshot:
     def upsert(self, devid, objid, propid, value):
         if _debug:
             Snapshot._debug("upsert %r %r %r %r", devid, objid, propid, value)
+        if not isinstance(propid, str):
+            return
 
         key = (devid, objid, propid)
         if key not in self.data:
