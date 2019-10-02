@@ -6,7 +6,7 @@ Network Service
 
 from copy import deepcopy as _deepcopy
 
-from .settings import route_aware
+from .settings import settings
 from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
 from .errors import ConfigurationError
 
@@ -308,7 +308,7 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server, DebugContents):
         npdu.npduHopCount = 255
 
         # if this is route aware, use it for the destination
-        if route_aware and npdu.pduDestination.addrRoute:
+        if settings.route_aware and npdu.pduDestination.addrRoute:
             # always a local station for now, in theory this could also be
             # a local braodcast address, remote station, or remote broadcast
             # but that is not supported by the patterns
@@ -507,10 +507,10 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server, DebugContents):
                 if (len(self.adapters) > 1) and (adapter != self.local_adapter):
                     # combine the source address
                     if not npdu.npduSADR:
-                        apdu.pduSource = RemoteStation( adapter.adapterNet, npdu.pduSource.addrAddr)
+                        apdu.pduSource = RemoteStation(adapter.adapterNet, npdu.pduSource.addrAddr)
                     else:
                         apdu.pduSource = npdu.npduSADR
-                    if route_aware:
+                    if settings.route_aware:
                         apdu.pduSource.addrRoute = npdu.pduSource
 
                     # map the destination
@@ -526,7 +526,7 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server, DebugContents):
                     # combine the source address
                     if npdu.npduSADR:
                         apdu.pduSource = npdu.npduSADR
-                        if route_aware:
+                        if settings.route_aware:
                             if _debug: NetworkServiceAccessPoint._debug("    - adding route")
                             apdu.pduSource.addrRoute = npdu.pduSource
                     else:

@@ -13,7 +13,7 @@ try:
 except ImportError:
     netifaces = None
 
-from .settings import route_aware
+from .settings import settings
 from .debugging import ModuleLogger, bacpypes_debugging, btox, xtob
 from .comm import PCI as _PCI, PDUData
 
@@ -200,7 +200,7 @@ class Address:
                     self.addrAddr = addrstr + struct.pack('!H', self.addrPort & _short_mask)
                     self.addrLen = 6
 
-                if (not route_aware) and (route_addr or route_ip_addr):
+                if (not settings.route_aware) and (route_addr or route_ip_addr):
                     Address._warning("route provided but not route aware: %r", addr)
 
                 if route_addr:
@@ -440,7 +440,7 @@ class Address:
         return "<%s %s>" % (self.__class__.__name__, self.__str__())
 
     def _tuple(self):
-        if (not route_aware) or (self.addrRoute is None):
+        if (not settings.route_aware) or (self.addrRoute is None):
             return (self.addrType, self.addrNet, self.addrAddr, None)
         else:
             return (self.addrType, self.addrNet, self.addrAddr, self.addrRoute._tuple())

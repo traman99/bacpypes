@@ -8,7 +8,7 @@ Nose Test PDU Address
 
 import unittest
 
-from bacpypes.settings import route_aware
+from bacpypes.settings import settings
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger, xtob
 from bacpypes.pdu import Address, LocalStation, RemoteStation, \
     LocalBroadcast, RemoteBroadcast, GlobalBroadcast
@@ -444,7 +444,8 @@ class TestRemoteStation(unittest.TestCase, MatchAddressMixin):
     def test_remote_station_ints_routed(self):
         if _debug: TestRemoteStation._debug("test_remote_station_ints_routed")
 
-        if not route_aware:
+        if not settings.route_aware:
+            if _debug: TestRemoteStation._debug("    - not route aware")
             return
 
         # test integer
@@ -465,7 +466,8 @@ class TestRemoteStation(unittest.TestCase, MatchAddressMixin):
     def test_remote_station_bytes_routed(self):
         if _debug: TestRemoteStation._debug("test_remote_station_bytes_routed")
 
-        if not route_aware:
+        if not settings.route_aware:
+            if _debug: TestRemoteStation._debug("    - not route aware")
             return
 
         # multi-byte strings are hex encoded
@@ -496,7 +498,8 @@ class TestLocalBroadcast(unittest.TestCase, MatchAddressMixin):
     def test_local_broadcast_routed(self):
         if _debug: TestLocalBroadcast._debug("test_local_broadcast_routed")
 
-        if not route_aware:
+        if not settings.route_aware:
+            if _debug: TestLocalBroadcast._debug("    - not route aware")
             return
 
         test_addr = LocalBroadcast(route=Address("1.2.3.4"))
@@ -529,7 +532,8 @@ class TestRemoteBroadcast(unittest.TestCase, MatchAddressMixin):
     def test_remote_broadcast_routed(self):
         if _debug: TestRemoteBroadcast._debug("test_remote_broadcast_routed")
 
-        if not route_aware:
+        if not settings.route_aware:
+            if _debug: TestRemoteBroadcast._debug("    - not route aware")
             return
 
         # match
@@ -551,7 +555,8 @@ class TestGlobalBroadcast(unittest.TestCase, MatchAddressMixin):
     def test_global_broadcast_routed(self):
         if _debug: TestGlobalBroadcast._debug("test_global_broadcast_routed")
 
-        if not route_aware:
+        if not settings.route_aware:
+            if _debug: TestGlobalBroadcast._debug("    - not route aware")
             return
 
         test_addr = GlobalBroadcast(route=Address("1.2.3.4"))
@@ -576,7 +581,8 @@ class TestAddressEquality(unittest.TestCase, MatchAddressMixin):
     def test_address_equality_str_routed(self):
         if _debug: TestAddressEquality._debug("test_address_equality_str_routed")
 
-        if not route_aware:
+        if not settings.route_aware:
+            if _debug: TestAddressEquality._debug("    - not route aware")
             return
 
         assert Address("3:4@6.7.8.9") == RemoteStation(3, 4, route=Address("6.7.8.9"))

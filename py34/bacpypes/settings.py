@@ -4,18 +4,25 @@
 Settings
 """
 
-import os
 
-# configuration file
-ini_file = os.getenv('BACPYPES_INI', 'BACpypes.ini')
+class Settings(dict):
+    def __getattr__(self, name):
+        if name not in self:
+            raise AttributeError("No such setting: " + name)
+        return self[name]
 
-# debugging settings
-debug = os.getenv('BACPYPES_DEBUG', '')
-color = os.getenv('BACPYPES_COLOR', None)
-debug_file = os.getenv('BACPYPES_DEBUG_FILE', None)
-max_bytes = int(os.getenv('BACPYPES_MAX_BYTES', 1048576))
-backup_count = int(os.getenv('BACPYPES_BACKUP_COUNT', 5))
+    def __setattr__(self, name, value):
+        if name not in self:
+            raise AttributeError("No such setting: " + name)
+        self[name] = value
 
-# advanced routing
-route_aware = bool(os.getenv('BACPYPES_ROUTE_AWARE', False))
 
+# globals
+settings = Settings(
+    debug=set(),
+    color=False,
+    debug_file="",
+    max_bytes=1048576,
+    backup_count=5,
+    route_aware=False,
+)
