@@ -11,7 +11,7 @@ import logging
 import logging.handlers
 import argparse
 
-from .settings import Settings, settings
+from .settings import Settings, settings, os_settings, dict_settings
 from .debugging import bacpypes_debugging, LoggingFormatter, ModuleLogger
 
 from configparser import ConfigParser as _ConfigParser
@@ -78,6 +78,7 @@ class ArgumentParser(argparse.ArgumentParser):
         --buggers                       list the debugging logger names
         --debug [DEBUG [DEBUG ...]]     attach a handler to loggers
         --color                         debug in color
+        --route-aware                   turn on route aware
     """
 
     def __init__(self, **kwargs):
@@ -107,45 +108,20 @@ class ArgumentParser(argparse.ArgumentParser):
             default=None,
             )
 
+        # add a way to turn on route aware
+        self.add_argument("--route-aware",
+            help="turn on route aware",
+            action="store_true",
+            default=None,
+            )
+
     def update_os_env(self):
         """Update the settings with values from the environment, if provided."""
         if _debug: ArgumentParser._debug("update_os_env")
 
-        for setting_name, env_name in (
-            ("debug", "BACPYPES_DEBUG"),
-            ("color", "BACPYPES_COLOR"),
-            ("debug_file", "BACPYPES_DEBUG_FILE"),
-            ("max_bytes", "BACPYPES_MAX_BYTES"),
-            ("backup_count", "BACPYPES_BACKUP_COUNT"),
-            ("route_aware", "BACPYPES_ROUTE_AWARE"),
-        ):
-            env_value = os.getenv(env_name, None)
-            if env_value is not None:
-                cur_value = settings[setting_name]
-                if _debug: ArgumentParser._debug("    - %s: %r", setting_name, cur_value)
-
-                if isinstance(cur_value, bool):
-                    env_value = env_value.lower()
-                    if env_value in ("set", "true"):
-                        env_value = True
-                    elif env_value in ("reset", "false"):
-                        env_value = False
-                    else:
-                        raise ValueError("setting: " + setting_name)
-                elif isinstance(cur_value, int):
-                    try:
-                        env_value = int(env_value)
-                    except:
-                        raise ValueError("setting: " + setting_name)
-                elif isinstance(cur_value, str):
-                    pass
-                elif isinstance(cur_value, list):
-                    env_value = env_value.split()
-                elif isinstance(cur_value, set):
-                    env_value = set(env_value.split())
-                else:
-                    raise TypeError("setting type: " + setting_name)
-                settings[setting_name] = env_value
+        # use settings function
+        os_settings()
+        if _debug: ArgumentParser._debug("    - settings: %r", settings)
 
     def parse_args(self, *args, **kwargs):
         """Parse the arguments as usual, then add default processing."""
@@ -179,12 +155,19 @@ class ArgumentParser(argparse.ArgumentParser):
             if _debug: ArgumentParser._debug("    - debug: %r", result_args.debug)
             settings.debug.update(result_args.debug)
 
-        # check for debugging from the environment
+        # check for color
         if result_args.color is None:
             if _debug: ArgumentParser._debug("    - color not specified")
         else:
             if _debug: ArgumentParser._debug("    - color: %r", result_args.color)
             settings.color = result_args.color
+
+        # check for route aware
+        if result_args.route_aware is None:
+            if _debug: ArgumentParser._debug("    - route_aware not specified")
+        else:
+            if _debug: ArgumentParser._debug("    - route_aware: %r", result_args.route_aware)
+            settings.route_aware = result_args.route_aware
 
     def interpret_debugging(self, result_args):
         """Take the result of parsing the args and interpret them."""
@@ -308,6 +291,7 @@ class ConfigArgumentParser(ArgumentParser):
 #   JSONArgumentParser
 #
 
+
 @bacpypes_debugging
 class JSONArgumentParser(ArgumentParser):
 
@@ -353,31 +337,8 @@ class JSONArgumentParser(ArgumentParser):
 
         # look for settings
         if "bacpypes" in json_obj:
-            json_settings = json_obj.bacpypes
-            for setting_name in ('debug', 'color', 'debug_file', 'max_bytes', 'backup_count', 'route_aware'):
-                if setting_name in json_settings:
-                    cur_value = settings[setting_name]
-                    env_value = json_settings[setting_name]
-                    if _debug: JSONArgumentParser._debug("    - %s: %r -> %r", setting_name, cur_value, env_value)
-
-                    if isinstance(cur_value, bool):
-                        if not isinstance(env_value, bool):
-                            raise TypeError(setting_name)
-                    elif isinstance(cur_value, int):
-                        if not isinstance(env_value, int):
-                            raise TypeError(setting_name)
-                    elif isinstance(cur_value, str):
-                        if not isinstance(env_value, str):
-                            raise TypeError(setting_name)
-                    elif isinstance(cur_value, list):
-                        if not isinstance(env_value, list):
-                            raise TypeError(setting_name)
-                    elif isinstance(cur_value, set):
-                        env_value = set(env_value)
-                    else:
-                        raise TypeError("setting type: " + setting_name)
-                    settings[setting_name] = env_value
-        if _debug: JSONArgumentParser._debug("    - settings: %r", settings)
+            dict_settings(**json_obj.bacpypes)
+            if _debug: JSONArgumentParser._debug("    - settings: %r", settings)
 
         # add the object to the parsed arguments
         setattr(result_args, 'json', json_obj)
