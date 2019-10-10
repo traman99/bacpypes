@@ -4,8 +4,14 @@
 Settings
 """
 
+import os
+
 
 class Settings(dict):
+    """
+    Settings
+    """
+
     def __getattr__(self, name):
         if name not in self:
             raise AttributeError("No such setting: " + name)
